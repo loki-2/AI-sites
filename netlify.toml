@@ -34,9 +34,5 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
-# Redirects (if needed)
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = false
+# Note: Next.js API routes work automatically with @netlify/plugin-nextjs
+# No redirects needed - the plugin handles /api/* routes
