@@ -17,8 +17,15 @@ export async function POST(request: NextRequest) {
     const timestamp = request.headers.get("x-slack-request-timestamp") || "";
     const signature = request.headers.get("x-slack-signature") || "";
 
+    console.log("[Slack Interactions] Received request");
+
     // Verify request signature
-    const signingSecret = process.env.SLACK_SIGNING_SECRET!;
+    const signingSecret = process.env.SLACK_SIGNING_SECRET;
+    if (!signingSecret) {
+      console.error("[Slack] SLACK_SIGNING_SECRET not set");
+      return NextResponse.json({ error: "Server config error" }, { status: 500 });
+    }
+    
     if (!verifySlackRequest(signingSecret, rawBody, timestamp, signature)) {
       console.error("[Slack] Invalid signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -28,10 +35,12 @@ export async function POST(request: NextRequest) {
     const params = new URLSearchParams(rawBody);
     const payloadStr = params.get("payload");
     if (!payloadStr) {
+      console.error("[Slack] No payload in request");
       return NextResponse.json({ error: "No payload" }, { status: 400 });
     }
 
     const payload = JSON.parse(payloadStr);
+    console.log("[Slack Interactions] Payload type:", payload.type);
     
     // Handle different interaction types
     if (payload.type === "block_actions") {
@@ -41,26 +50,50 @@ export async function POST(request: NextRequest) {
       const channelId = payload.channel.id;
       const messageTs = payload.message.ts;
 
+      console.log("[Slack Interactions] Action:", actionId);
+
       // Handle approve/reject actions
       if (actionId.startsWith("approve_") || actionId.startsWith("reject_")) {
         const approved = actionId.startsWith("approve_");
-        const valueData = JSON.parse(action.value);
-        const { itemId, notionPageId } = valueData;
-
-        console.log(`[Slack] ${approved ? "Approved" : "Rejected"} item ${itemId} by user ${userId}`);
-
-        // Update message with response
-        await updateApprovalMessage(channelId, messageTs, itemId, approved, userId);
-
-        if (approved && notionPageId) {
-          // Update Notion to mark as approved
-          await updateProcessedItem(notionPageId, { slackApproved: true });
-
-          // Trigger article writing in background
-          // Note: In production, you'd want to use a queue for this
-          processApprovedItem(notionPageId).catch(console.error);
+        
+        let valueData;
+        try {
+          valueData = JSON.parse(action.value);
+        } catch (e) {
+          console.error("[Slack] Failed to parse action value:", action.value);
+          return NextResponse.json({ ok: true }); // Still return OK to Slack
         }
+        
+        const { itemId, notionPageId } = valueData;
+        console.log(`[Slack] ${approved ? "Approved" : "Rejected"} item ${itemId}, notionPageId: ${notionPageId}`);
 
+        // Return immediately to Slack (within 3 second timeout)
+        // Then process in background using Promise
+        const responsePromise = (async () => {
+          try {
+            // Update message with response
+            await updateApprovalMessage(channelId, messageTs, itemId, approved, userId);
+            
+            if (approved && notionPageId) {
+              // Update Notion to mark as approved
+              console.log(`[Slack] Updating Notion page: ${notionPageId}`);
+              await updateProcessedItem(notionPageId, { slackApproved: true });
+              console.log(`[Slack] Notion updated, starting article generation...`);
+
+              // Process article in background
+              processApprovedItem(notionPageId).catch((err) => {
+                console.error(`[Slack] Article generation error:`, err);
+              });
+            }
+          } catch (err) {
+            console.error(`[Slack] Background processing error:`, err);
+          }
+        })();
+
+        // Don't await the promise - let it run in background
+        responsePromise.catch(console.error);
+
+        // Return immediately to Slack
         return NextResponse.json({ ok: true });
       }
     }
@@ -68,7 +101,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[Slack Interactions] Error:", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    // Return OK anyway to prevent Slack from retrying
+    return NextResponse.json({ ok: true });
   }
 }
 
