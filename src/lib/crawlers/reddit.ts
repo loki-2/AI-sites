@@ -50,7 +50,8 @@ const SUBREDDITS = [
 async function fetchSubreddit(
   subreddit: string,
   hoursBack: number,
-  limit = 100
+  limit = 100,
+  minScore = 10
 ): Promise<RawItem[]> {
   const url = `https://old.reddit.com/r/${subreddit}/new.json?limit=${limit}`;
 
