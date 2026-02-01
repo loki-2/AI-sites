@@ -67,33 +67,24 @@ export async function POST(request: NextRequest) {
         const { itemId, notionPageId } = valueData;
         console.log(`[Slack] ${approved ? "Approved" : "Rejected"} item ${itemId}, notionPageId: ${notionPageId}`);
 
-        // Return immediately to Slack (within 3 second timeout)
-        // Then process in background using Promise
-        const responsePromise = (async () => {
+        // Do the Notion update BEFORE returning to Slack
+        // (Must complete within 3 seconds)
+        if (approved && notionPageId) {
           try {
-            // Update message with response
-            await updateApprovalMessage(channelId, messageTs, itemId, approved, userId);
-            
-            if (approved && notionPageId) {
-              // Update Notion to mark as approved
-              console.log(`[Slack] Updating Notion page: ${notionPageId}`);
-              await updateProcessedItem(notionPageId, { slackApproved: true });
-              console.log(`[Slack] Notion updated, starting article generation...`);
-
-              // Process article in background
-              processApprovedItem(notionPageId).catch((err) => {
-                console.error(`[Slack] Article generation error:`, err);
-              });
-            }
-          } catch (err) {
-            console.error(`[Slack] Background processing error:`, err);
+            console.log(`[Slack] Updating Notion page: ${notionPageId}`);
+            await updateProcessedItem(notionPageId, { slackApproved: true });
+            console.log(`[Slack] Notion updated successfully!`);
+          } catch (notionErr) {
+            console.error(`[Slack] Notion update failed:`, notionErr);
           }
-        })();
+        }
 
-        // Don't await the promise - let it run in background
-        responsePromise.catch(console.error);
+        // Update Slack message (non-blocking, ok if it fails)
+        updateApprovalMessage(channelId, messageTs, itemId, approved, userId).catch((err) => {
+          console.error(`[Slack] Message update failed:`, err);
+        });
 
-        // Return immediately to Slack
+        // Return to Slack - article generation will be triggered separately
         return NextResponse.json({ ok: true });
       }
     }
