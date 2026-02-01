@@ -1,0 +1,42 @@
+# ===========================================
+# Netlify Configuration
+# ===========================================
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+# Next.js plugin for Netlify
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Environment variables (set in Netlify dashboard for secrets)
+[build.environment]
+  NODE_VERSION = "20"
+
+# Scheduled Functions Configuration
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Function-specific schedules (backup - also defined in function files)
+[functions."scheduled-crawl"]
+  schedule = "0 11,23 * * *"
+
+[functions."scheduled-publish"]
+  schedule = "0 12 * * *"
+
+# Headers for security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Redirects (if needed)
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = false
