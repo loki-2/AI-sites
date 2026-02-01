@@ -10,16 +10,32 @@ export async function POST(request: NextRequest) {
   try {
     // Get raw body for signature verification
     const rawBody = await request.text();
+    console.log("[Slack Events] Received request, body length:", rawBody.length);
+    
     const timestamp = request.headers.get("x-slack-request-timestamp") || "";
     const signature = request.headers.get("x-slack-signature") || "";
 
     // Parse body to check event type
-    const body = JSON.parse(rawBody);
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+      console.log("[Slack Events] Request type:", body.type);
+    } catch (parseError) {
+      console.error("[Slack Events] JSON parse error:", parseError);
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
 
     // Handle URL verification challenge (no signature check needed)
     if (body.type === "url_verification") {
-      console.log("[Slack Events] URL verification challenge received");
-      return NextResponse.json({ challenge: body.challenge });
+      console.log("[Slack Events] URL verification - Challenge:", body.challenge);
+      // Return plain JSON response with just the challenge
+      return new NextResponse(
+        JSON.stringify({ challenge: body.challenge }),
+        { 
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
     }
 
     // Verify request signature for other events
