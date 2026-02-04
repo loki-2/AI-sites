@@ -57,10 +57,11 @@ export async function POST(request: NextRequest) {
     console.log(`[Process Single] Word count: ${result.content.split(/\s+/).length}`);
     console.log(`[Process Single] Reviewer score: ${result.finalScore}/10`);
 
-    // Save to Notion
+    // Save to Notion - both Article Content (original) and ReviewedContent (rewritten)
     await updateProcessedItem(notionPageId, {
       title: result.title,
-      articleContent: result.content,
+      articleContent: result.content,      // The rewritten final article
+      reviewedContent: result.content,     // Also save to ReviewedContent column
     });
 
     console.log(`[Process Single] Saved to Notion!`);

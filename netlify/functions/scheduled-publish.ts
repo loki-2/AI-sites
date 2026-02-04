@@ -47,7 +47,7 @@ export default async function handler(request: Request, context: Context) {
   }
 }
 
-// Schedule: Daily at noon UTC
+// Schedule: Every 10 minutes - checks for ReadyToPublish items
 export const config: Config = {
-  schedule: "0 12 * * *",
+  schedule: "*/10 * * * *",
 };
