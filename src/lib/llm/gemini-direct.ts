@@ -75,7 +75,10 @@ export async function callGeminiJSON<T>(
   systemPrompt?: string,
   config: GeminiConfig = {}
 ): Promise<T> {
-  const { text } = await callGemini(prompt, systemPrompt, config);
+  const { text, finishReason } = await callGemini(prompt, systemPrompt, config);
+  
+  // Log raw response for debugging
+  console.log(`[Gemini JSON] Response length: ${text.length}, finishReason: ${finishReason}`);
   
   // Extract JSON from response
   let jsonStr = text.trim();
@@ -97,5 +100,32 @@ export async function callGeminiJSON<T>(
     jsonStr = arrayMatch[0];
   }
   
-  return JSON.parse(jsonStr);
+  try {
+    return JSON.parse(jsonStr);
+  } catch (parseError) {
+    // Try to fix common JSON issues
+    console.log(`[Gemini JSON] Parse failed, attempting fixes...`);
+    console.log(`[Gemini JSON] Raw text (first 500 chars): ${text.substring(0, 500)}`);
+    
+    try {
+      // Fix 1: Remove trailing commas
+      let fixed = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+      
+      // Fix 2: Fix unescaped newlines in strings
+      fixed = fixed.replace(/(?<!\\)\n/g, '\\n');
+      
+      // Fix 3: Try to close incomplete JSON
+      const openBraces = (fixed.match(/\{/g) || []).length;
+      const closeBraces = (fixed.match(/\}/g) || []).length;
+      if (openBraces > closeBraces) {
+        fixed += '}'.repeat(openBraces - closeBraces);
+      }
+      
+      return JSON.parse(fixed);
+    } catch (fixError) {
+      console.error(`[Gemini JSON] Could not fix JSON:`, (fixError as Error).message);
+      console.error(`[Gemini JSON] Extracted JSON (first 300 chars): ${jsonStr.substring(0, 300)}`);
+      throw parseError; // Throw original error
+    }
+  }
 }

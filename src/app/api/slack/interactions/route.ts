@@ -2,13 +2,12 @@
 // Slack Interactions API Route
 // ===========================================
 // Handles button clicks from Slack messages
+// On approval: updates Notion and triggers background function
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifySlackRequest } from "@/lib/slack/client";
 import { updateApprovalMessage } from "@/lib/slack/messages";
-import { updateProcessedItem, getApprovedItemsForWriting } from "@/lib/notion/operations";
-import { writeArticle } from "@/lib/agents/writer";
-import { reviewArticle } from "@/lib/agents/reviewer";
+import { updateProcessedItem } from "@/lib/notion/operations";
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,8 +56,20 @@ export async function POST(request: NextRequest) {
         const approved = actionId.startsWith("approve_");
         
         let valueData;
+        let itemTitle = "Unknown";
         try {
           valueData = JSON.parse(action.value);
+          // Try to extract title from the original message
+          const blocks = payload.message?.blocks || [];
+          for (const block of blocks) {
+            if (block.type === "section" && block.text?.text) {
+              const match = block.text.text.match(/\*([^*]+)\*/);
+              if (match) {
+                itemTitle = match[1];
+                break;
+              }
+            }
+          }
         } catch (e) {
           console.error("[Slack] Failed to parse action value:", action.value);
           return NextResponse.json({ ok: true }); // Still return OK to Slack
@@ -67,24 +78,18 @@ export async function POST(request: NextRequest) {
         const { itemId, notionPageId } = valueData;
         console.log(`[Slack] ${approved ? "Approved" : "Rejected"} item ${itemId}, notionPageId: ${notionPageId}`);
 
-        // Do the Notion update BEFORE returning to Slack
-        // (Must complete within 3 seconds)
+        // IMPORTANT: Return to Slack IMMEDIATELY (must be < 3 seconds)
+        // All async work happens after we return
+        
         if (approved && notionPageId) {
-          try {
-            console.log(`[Slack] Updating Notion page: ${notionPageId}`);
-            await updateProcessedItem(notionPageId, { slackApproved: true });
-            console.log(`[Slack] Notion updated successfully!`);
-          } catch (notionErr) {
-            console.error(`[Slack] Notion update failed:`, notionErr);
-          }
+          // Fire and forget - don't await anything
+          processApproval(notionPageId, itemTitle, channelId, messageTs, itemId, userId);
+        } else {
+          // Just update the message for rejections
+          updateApprovalMessage(channelId, messageTs, itemId, approved, userId).catch(() => {});
         }
 
-        // Update Slack message (non-blocking, ok if it fails)
-        updateApprovalMessage(channelId, messageTs, itemId, approved, userId).catch((err) => {
-          console.error(`[Slack] Message update failed:`, err);
-        });
-
-        // Return to Slack - article generation will be triggered separately
+        // Return immediately to Slack
         return NextResponse.json({ ok: true });
       }
     }
@@ -92,43 +97,67 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[Slack Interactions] Error:", error);
-    // Return OK anyway to prevent Slack from retrying
     return NextResponse.json({ ok: true });
   }
 }
 
 // -------------------------------------------
-// Background process for approved items
+// Process Approval (runs after response sent)
 // -------------------------------------------
 
-async function processApprovedItem(notionPageId: string) {
-  try {
-    // Get the approved item from Notion
-    const items = await getApprovedItemsForWriting();
-    const item = items.find((i) => i.notionPageId === notionPageId);
+function processApproval(
+  notionPageId: string,
+  itemTitle: string,
+  channelId: string,
+  messageTs: string,
+  itemId: string,
+  userId: string
+) {
+  // This runs asynchronously after Slack gets its response
+  (async () => {
+    try {
+      // 1. Update Notion
+      console.log(`[Slack Async] Updating Notion: ${notionPageId}`);
+      await updateProcessedItem(notionPageId, { slackApproved: true });
+      console.log(`[Slack Async] Notion updated!`);
 
-    if (!item) {
-      console.error(`[Process] Item not found: ${notionPageId}`);
-      return;
+      // 2. Update Slack message
+      await updateApprovalMessage(channelId, messageTs, itemId, true, userId);
+      console.log(`[Slack Async] Message updated!`);
+
+      // 3. Trigger background function for article generation
+      await triggerBackgroundProcessing(notionPageId, itemTitle);
+      console.log(`[Slack Async] Background function triggered!`);
+    } catch (error) {
+      console.error(`[Slack Async] Error:`, error);
     }
+  })();
+}
 
-    console.log(`[Process] Writing article for: ${item.title}`);
+// -------------------------------------------
+// Trigger Background Function
+// -------------------------------------------
 
-    // Write article
-    const articleContent = await writeArticle(item);
-
-    // Review article
-    const reviewed = await reviewArticle(item, articleContent);
-
-    // Update Notion with the article content
-    await updateProcessedItem(notionPageId, {
-      title: reviewed.title,
-      articleContent: articleContent,
-      reviewedContent: reviewed.content,
-    });
-
-    console.log(`[Process] Article ready for: ${reviewed.title}`);
-  } catch (error) {
-    console.error(`[Process] Error processing item ${notionPageId}:`, error);
+async function triggerBackgroundProcessing(notionPageId: string, itemTitle: string) {
+  const baseUrl = process.env.URL || process.env.NEXT_PUBLIC_APP_URL || "https://vibecoders-news.netlify.app";
+  
+  // Netlify background functions are triggered by calling /.netlify/functions/{name}-background
+  const backgroundUrl = `${baseUrl}/.netlify/functions/process-article-background`;
+  
+  console.log(`[Slack] Triggering background function: ${backgroundUrl}`);
+  
+  const response = await fetch(backgroundUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ notionPageId, itemTitle }),
+  });
+  
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`[Slack] Background function error (${response.status}):`, text);
+  } else {
+    console.log(`[Slack] Background function triggered successfully`);
   }
 }
