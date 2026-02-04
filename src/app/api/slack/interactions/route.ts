@@ -6,8 +6,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifySlackRequest } from "@/lib/slack/client";
-import { updateApprovalMessage } from "@/lib/slack/messages";
-import { updateProcessedItem } from "@/lib/notion/operations";
 
 export async function POST(request: NextRequest) {
   try {
@@ -78,15 +76,14 @@ export async function POST(request: NextRequest) {
         const { itemId, notionPageId } = valueData;
         console.log(`[Slack] ${approved ? "Approved" : "Rejected"} item ${itemId}, notionPageId: ${notionPageId}`);
 
-        // IMPORTANT: Return to Slack IMMEDIATELY (must be < 3 seconds)
-        // All async work happens after we return
+        // IMPORTANT: Trigger background function BEFORE returning
+        // Background function will handle: Notion update + Article generation
+        // This is a quick HTTP call that just starts the background process
         
         if (approved && notionPageId) {
-          // Fire and forget - don't await anything
-          processApproval(notionPageId, itemTitle, channelId, messageTs, itemId, userId);
-        } else {
-          // Just update the message for rejections
-          updateApprovalMessage(channelId, messageTs, itemId, approved, userId).catch(() => {});
+          // Trigger background - this is fast, just starts the process
+          triggerBackgroundProcessing(notionPageId, itemTitle, channelId, messageTs, itemId, userId)
+            .catch(err => console.error(`[Slack] Background trigger error:`, err));
         }
 
         // Return immediately to Slack
@@ -102,10 +99,10 @@ export async function POST(request: NextRequest) {
 }
 
 // -------------------------------------------
-// Process Approval (runs after response sent)
+// Trigger Background Function
 // -------------------------------------------
 
-function processApproval(
+async function triggerBackgroundProcessing(
   notionPageId: string,
   itemTitle: string,
   channelId: string,
@@ -113,32 +110,6 @@ function processApproval(
   itemId: string,
   userId: string
 ) {
-  // This runs asynchronously after Slack gets its response
-  (async () => {
-    try {
-      // 1. Update Notion
-      console.log(`[Slack Async] Updating Notion: ${notionPageId}`);
-      await updateProcessedItem(notionPageId, { slackApproved: true });
-      console.log(`[Slack Async] Notion updated!`);
-
-      // 2. Update Slack message
-      await updateApprovalMessage(channelId, messageTs, itemId, true, userId);
-      console.log(`[Slack Async] Message updated!`);
-
-      // 3. Trigger background function for article generation
-      await triggerBackgroundProcessing(notionPageId, itemTitle);
-      console.log(`[Slack Async] Background function triggered!`);
-    } catch (error) {
-      console.error(`[Slack Async] Error:`, error);
-    }
-  })();
-}
-
-// -------------------------------------------
-// Trigger Background Function
-// -------------------------------------------
-
-async function triggerBackgroundProcessing(notionPageId: string, itemTitle: string) {
   const baseUrl = process.env.URL || process.env.NEXT_PUBLIC_APP_URL || "https://vibecoders-news.netlify.app";
   
   // Netlify background functions are triggered by calling /.netlify/functions/{name}-background
@@ -146,18 +117,24 @@ async function triggerBackgroundProcessing(notionPageId: string, itemTitle: stri
   
   console.log(`[Slack] Triggering background function: ${backgroundUrl}`);
   
-  const response = await fetch(backgroundUrl, {
+  // Don't await - just fire and return immediately
+  fetch(backgroundUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ notionPageId, itemTitle }),
+    body: JSON.stringify({
+      notionPageId,
+      itemTitle,
+      slack: { channelId, messageTs, itemId, userId },
+    }),
+  }).then(response => {
+    if (!response.ok) {
+      console.error(`[Slack] Background function error: ${response.status}`);
+    } else {
+      console.log(`[Slack] Background function triggered!`);
+    }
+  }).catch(err => {
+    console.error(`[Slack] Background trigger failed:`, err);
   });
-  
-  if (!response.ok) {
-    const text = await response.text();
-    console.error(`[Slack] Background function error (${response.status}):`, text);
-  } else {
-    console.log(`[Slack] Background function triggered successfully`);
-  }
 }
