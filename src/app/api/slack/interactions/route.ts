@@ -110,31 +110,33 @@ async function triggerBackgroundProcessing(
   itemId: string,
   userId: string
 ) {
-  const baseUrl = process.env.URL || process.env.NEXT_PUBLIC_APP_URL || "https://vibecoders-news.netlify.app";
+  // Use Next.js API route instead of broken Netlify background function
+  // This works both locally and on Netlify
+  const baseUrl = process.env.URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const processUrl = `${baseUrl}/api/internal/process-single`;
+  const secret = process.env.CRON_SECRET;
   
-  // Netlify background functions are triggered by calling /.netlify/functions/{name}-background
-  const backgroundUrl = `${baseUrl}/.netlify/functions/process-article-background`;
+  console.log(`[Slack] Triggering article processing: ${processUrl}`);
+  console.log(`[Slack] Processing article: "${itemTitle}" (${notionPageId})`);
   
-  console.log(`[Slack] Triggering background function: ${backgroundUrl}`);
-  
-  // Don't await - just fire and return immediately
-  fetch(backgroundUrl, {
+  // Fire and forget - don't await to keep Slack response fast
+  fetch(processUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${secret}`,
     },
-    body: JSON.stringify({
-      notionPageId,
-      itemTitle,
-      slack: { channelId, messageTs, itemId, userId },
-    }),
-  }).then(response => {
-    if (!response.ok) {
-      console.error(`[Slack] Background function error: ${response.status}`);
-    } else {
-      console.log(`[Slack] Background function triggered!`);
-    }
-  }).catch(err => {
-    console.error(`[Slack] Background trigger failed:`, err);
-  });
+    body: JSON.stringify({ notionPageId }),
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`[Slack] Processing failed (${response.status}):`, text);
+      } else {
+        console.log(`[Slack] ✅ Article processing started for: "${itemTitle}"`);
+      }
+    })
+    .catch((err) => {
+      console.error(`[Slack] ❌ Processing trigger failed for "${itemTitle}":`, err.message);
+    });
 }

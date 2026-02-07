@@ -21,6 +21,7 @@ interface ReviewFeedback {
 interface ArticleResult {
   title: string;
   content: string;
+  originalContent: string; // Draft before reviewer improvements
   iterations: number;
   finalScore: number;
 }
@@ -209,7 +210,8 @@ export async function writeArticleWithFeedback(
   console.log(`[Writer+Reviewer] Starting for: ${item.title}`);
 
   // Step 1: Writer creates initial draft
-  let article = await writeInitialArticle(item);
+  const originalArticle = await writeInitialArticle(item);
+  let article = originalArticle; // Keep original for comparison
   let currentTitle = item.title;
 
   console.log(`[Writer+Reviewer] Initial draft complete (${article.split(/\s+/).length} words)`);
@@ -233,7 +235,8 @@ export async function writeArticleWithFeedback(
 
   return {
     title: currentTitle,
-    content: article,
+    content: article, // Final reviewed version
+    originalContent: originalArticle, // Original draft before review
     iterations: 1,
     finalScore: feedback.qualityScore,
   };

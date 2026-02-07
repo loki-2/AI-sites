@@ -133,10 +133,22 @@ Respond with ONLY valid JSON:
     };
   } catch (error) {
     console.error(`[Reviewer] Error reviewing "${item.title}":`, error);
-    // Return original if review fails
+    console.error(`[Reviewer] Error details:`, (error as Error).message);
+    
+    // Fallback: Return original with minimal improvements
+    // Remove obvious AI phrases manually as a fallback
+    let fallbackContent = originalContent;
+    const aiPhrasesToRemove = ["delve", "leverage", "robust", "comprehensive"];
+    aiPhrasesToRemove.forEach(phrase => {
+      const regex = new RegExp(`\\b${phrase}\\b`, 'gi');
+      fallbackContent = fallbackContent.replace(regex, '');
+    });
+    
+    console.log(`[Reviewer] Using fallback (manual AI phrase removal)`);
+    
     return {
       title: item.title,
-      content: originalContent,
+      content: fallbackContent.trim() || originalContent,
       humanScore: originalHumanScore,
     };
   }
