@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
       originalUrl: props.OriginalURL?.url || "",
       summary: props.Summary?.rich_text?.[0]?.text?.content || "",
       tags: props.Tags?.multi_select?.map((t: any) => t.name) || [],
+      category: (props.Category?.select?.name as "news" | "actionable") || "news",
       relevanceScore: props.RelevanceScore?.number || 0,
       whyItMatters: props.Summary?.rich_text?.[0]?.text?.content || "",
       slackApproved: true,

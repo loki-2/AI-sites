@@ -12,7 +12,8 @@ export async function GET() {
 
     // Step 1: Crawl (just 5 items for testing)
     console.log("[Full Pipeline Test] Step 1: Crawling...");
-    const rawItems = await crawlAllSources({ hoursBack: 24 });
+    const crawlResult = await crawlAllSources({ hoursBack: 24 });
+    const rawItems = crawlResult.items;
     const testItems = rawItems.slice(0, 3); // Only 3 for quick test
     console.log(`[Full Pipeline Test] Using ${testItems.length} items`);
 

@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       originalUrl: "https://news.ycombinator.com/item?id=12345",
       summary: "DeepSeek has released R1, a new reasoning model that matches GPT-4 performance on key benchmarks while costing significantly less to run. The model is open-weights and can run locally.",
       tags: ["AI", "LLM", "Open Source"],
+      category: "news" as const,
       relevanceScore: 95,
       whyItMatters: "For builders, this means access to GPT-4 level intelligence without the API costs. Great for startups building AI products.",
       slackApproved: true,

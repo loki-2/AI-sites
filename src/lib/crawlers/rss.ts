@@ -137,7 +137,7 @@ async function crawlSingleFeed(
         content: content.slice(0, 1000), // Limit content length
         crawledAt: new Date(),
         score: 0,
-        author: entry.creator || entry.author,
+        author: entry.creator || (entry as any).author,
       });
     }
 

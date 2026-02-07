@@ -76,6 +76,7 @@ Respond with a JSON object (no markdown, just raw JSON):
       originalUrl: item.url,
       summary: parsed.summary,
       tags: parsed.tags || [],
+      category: "news" as const, // Default to news, headline writer will classify
       relevanceScore: parsed.relevanceScore || 50,
       whyItMatters: parsed.whyItMatters,
       slackApproved: false,

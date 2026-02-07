@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
 
     // Step 1: Crawl (limit to speed up testing)
     console.log("[Test Agents] Step 1: Crawling...");
-    const rawItems = await crawlAllSources({ hoursBack: 24 });
+    const crawlResult = await crawlAllSources({ hoursBack: 24 });
+    const rawItems = crawlResult.items;
     console.log(`[Test Agents] Crawled ${rawItems.length} items`);
 
     // Take only first 20 items for faster testing

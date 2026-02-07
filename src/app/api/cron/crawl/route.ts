@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
 
     // Step 1: Crawl all sources
     console.log("[Cron Crawl] Step 1: Crawling sources...");
-    const rawItems = await crawlAllSources({ hoursBack: 24 });
+    const crawlResult = await crawlAllSources({ hoursBack: 24 });
+    const rawItems = crawlResult.items;
     console.log(`[Cron Crawl] Crawled ${rawItems.length} raw items`);
 
     if (rawItems.length === 0) {

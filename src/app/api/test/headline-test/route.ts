@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
 
     // Step 1: Crawl (limit to 10 for testing)
     console.log("[Headline Test] Step 1: Crawling...");
-    const rawItems = await crawlAllSources({ hoursBack: 24 });
+    const crawlResult = await crawlAllSources({ hoursBack: 24 });
+    const rawItems = crawlResult.items;
     const testItems = rawItems.slice(0, 10);
     console.log(`[Headline Test] Using ${testItems.length} items for testing`);
 
