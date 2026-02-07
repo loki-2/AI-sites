@@ -1,30 +1,60 @@
 // ===========================================
-// Test Crawl API Route (No Notion/Slack)
+// Test Crawl API Route
 // ===========================================
-// Simple endpoint to test crawlers without full pipeline
+// Test endpoint to verify crawler without full pipeline
+// Shows relevance scores and filtering
 
-import { NextRequest, NextResponse } from "next/server";
-import { crawlAllSources } from "@/lib/crawlers";
+import { NextResponse } from "next/server";
+import { crawlAllSources, getSourcesStats, getKeywordStats } from "@/lib/crawlers";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    console.log("[Test Crawl] Starting crawlers...");
+    console.log("\n[Test Crawl] Starting crawlers...\n");
 
-    // Just run crawlers and return results
-    const rawItems = await crawlAllSources({ hoursBack: 24 });
+    // Get source configuration
+    const sourceStats = getSourcesStats();
+    const keywordStats = getKeywordStats();
 
-    console.log(`[Test Crawl] Found ${rawItems.length} items`);
+    console.log("[Test Crawl] Sources:", JSON.stringify(sourceStats));
 
-    // Return first 10 items as preview
+    // Run crawlers with new relevance filtering
+    const result = await crawlAllSources({
+      hoursBack: 48, // Look back further for testing
+      minRelevanceScore: 20, // Lower threshold for testing
+      maxTotalItems: 20,
+    });
+
+    const { items, stats } = result;
+
+    console.log(`[Test Crawl] Found ${items.length} relevant items`);
+
+    // Format preview with relevance details
+    const preview = items.slice(0, 15).map((item) => ({
+      title: item.title,
+      source: item.source,
+      url: item.url,
+      relevanceScore: item.relevanceScore,
+      matches: item.relevanceDetails ? {
+        tier1: item.relevanceDetails.tier1Matches.slice(0, 3),
+        tier2: item.relevanceDetails.tier2Matches.slice(0, 3),
+        negative: item.relevanceDetails.negativeMatches,
+      } : null,
+    }));
+
     return NextResponse.json({
       success: true,
-      total: rawItems.length,
-      preview: rawItems.slice(0, 10).map((item) => ({
-        title: item.title,
-        source: item.source,
-        url: item.url,
-        score: item.score,
-      })),
+      config: {
+        sources: sourceStats,
+        keywords: keywordStats,
+      },
+      stats: stats.totals,
+      timing: {
+        durationMs: stats.timing.durationMs,
+      },
+      items: {
+        total: items.length,
+        preview,
+      },
     });
   } catch (error) {
     console.error("[Test Crawl] Error:", error);

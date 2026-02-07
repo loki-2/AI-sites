@@ -146,6 +146,9 @@ export async function addProcessedItem(item: ProcessedItem): Promise<string> {
       Tags: {
         multi_select: item.tags.map((tag) => ({ name: tag })),
       },
+      Category: {
+        select: { name: item.category },
+      },
       RelevanceScore: {
         number: item.relevanceScore,
       },
@@ -271,8 +274,8 @@ export async function getItemsReadyToPublish(): Promise<ProcessedItem[]> {
       whyItMatters: props.Summary?.rich_text?.[0]?.text?.content || "",
       slackApproved: props["SlackApproved\t"]?.checkbox || false,
       articleContent: props["Article Content"]?.rich_text?.[0]?.text?.content || "",
-      reviewedContent: props["ReviewedContent"]?.rich_text?.[0]?.text?.content || 
-                       props["Article Content"]?.rich_text?.[0]?.text?.content || "",
+      reviewedContent: props["ReviewedContent"]?.rich_text?.[0]?.text?.content ||
+        props["Article Content"]?.rich_text?.[0]?.text?.content || "",
       readyToPublish: props["ReadyToPublish\t"]?.checkbox || false,
     };
   });

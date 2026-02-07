@@ -1,38 +1,50 @@
 // ===========================================
-// Headline Writer Agent
+// Enhanced Headline Writer Agent
 // ===========================================
-// Purpose: Create catchy, builder-focused headlines from raw items
+// Purpose: Create hookable, SEO-optimized headlines for builders
 
 import { callGeminiJSON } from "@/lib/llm/gemini-direct";
 import type { RawItem, ProcessedItem } from "@/types";
 
 // -------------------------------------------
-// Headline Writer Agent Prompt
+// SEO-Optimized Headline Writer Prompt
 // -------------------------------------------
 
-const SYSTEM_PROMPT = `You are a headline writer for VibeCoders - builders who use AI tools to ship fast.
+const SYSTEM_PROMPT = `You are an expert headline writer for VibeCoders - builders who use AI tools to ship fast.
 
-Your job is to transform raw news items into compelling headlines that make builders want to click.
+Your headlines must be HOOKABLE and SPECIFIC. Use these category-specific formulas:
 
-For each item, create:
-1. A catchy headline (max 80 chars) - specific, actionable, no clickbait
-2. A one-line summary (1-2 sentences max)
-3. Why it matters for builders (1 sentence)
-4. 2-3 relevant tags
+NEWS HEADLINES (announcements, launches, updates):
+✓ "[Company] launches [Tool] with [Specific Feature] - [Key Benefit]"
+✓ "[Number]% improvement: [Tool] rolls out [Feature]"
+✓ "[Tool vs Tool]: [Company] takes on [Competitor] with [Innovation]"
+✓ "Breaking: [Event] makes [Impact] for [Audience]"
 
-Good headlines:
-✓ "Claude now supports 1M token context - build complex apps in one prompt"
-✓ "New cursor feature auto-fixes linter errors in real-time"
-✓ "Show HN: I built a SaaS in 48 hours using Claude Code"
+ACTIONABLE HEADLINES (tutorials, how-tos):
+✓ "How to [Achieve Result] using [Tool] in [Timeframe]"
+✓ "Build [Thing] with [Tool] - Step-by-step guide"
+✓ "[Number] ways to [Solve Problem] with [Approach]"
+✓ "From [Starting Point] to [End Goal]: [Tool] tutorial"
 
-Bad headlines:
-✗ "Major AI Update Released" (too vague)
-✗ "You Won't Believe What This New Tool Does!" (clickbait)
-✗ "Company Announces Product Changes" (boring)
+RULES:
+1. Include NUMBERS/DATA when possible (percentages, timeframes, versions)
+2. Be SPECIFIC - mention exact tools, features, benefits
+3. Max 80 characters
+4. NO clickbait ("You won't believe...")
+5. NO vague headlines ("Major Update Released")
+6. NO AI phrases: avoid "delve", "leverage", "robust", "comprehensive"
 
-Focus on: new tools, AI updates, coding workflows, indie maker wins, practical tutorials
+GOOD EXAMPLES:
+✓ "Cursor now auto-fixes TypeScript errors - 40% faster debugging"
+✓ "Build a REST API with Supabase in 30 minutes"
+✓ "GPT-4 Turbo drops to $0.01/1K tokens - 50% cheaper than GPT-4"
 
-Respond with JSON only.`;
+BAD EXAMPLES:
+✗ "New AI Tool Released" (too vague)
+✗ "Leveraging Robust AI Solutions" (AI-sounding)
+✗ "You Won't Believe This!" (clickbait)
+
+Create compelling, data-driven headlines that make builders click. Respond with JSON only.`;
 
 // -------------------------------------------
 // Process a single item
@@ -43,22 +55,34 @@ interface HeadlineResult {
   summary: string;
   whyItMatters: string;
   tags: string[];
+  category: "news" | "actionable";
   relevanceScore: number;
 }
 
 async function processItem(item: RawItem): Promise<ProcessedItem | null> {
-  const prompt = `Transform this news item into a compelling headline for vibe coders (builders who use AI to ship fast).
+  const prompt = `Transform this into a compelling headline for builders who use AI to ship fast.
 
 Original Title: ${item.title}
 Source: ${item.source}
+Content Preview: ${item.content?.slice(0, 300) || 'N/A'}
 
-Respond with ONLY valid JSON (no markdown):
-{"headline": "Catchy headline max 80 chars", "summary": "One line summary", "whyItMatters": "Why builders care", "tags": ["tag1", "tag2"], "relevanceScore": 70}`;
+First, classify as "news" or "actionable":
+- NEWS = announcements, launches, funding, acquisitions, product releases, updates
+- ACTIONABLE = tutorials, how-to guides, step-by-step instructions, code examples
+
+Then create a HOOKABLE headline using the category-specific formulas from the system prompt.
+Include numbers/data if available (percentages, timeframes, versions).
+Make it SPECIFIC - mention exact tools, features, benefits.
+
+Avoid AI phrases: delve, leverage, robust, comprehensive, utilize.
+
+Respond with ONLY valid JSON:
+{"headline": "Specific headline with data/numbers (max 80 chars)", "summary": "Clear one-line summary", "whyItMatters": "Why builders care - be specific", "tags": ["tag1", "tag2"], "category": "news", "relevanceScore": 75}`;
 
   try {
     const result = await callGeminiJSON<HeadlineResult>(prompt, SYSTEM_PROMPT, {
-      temperature: 0.5,
-      maxOutputTokens: 1024,
+      temperature: 0.7, // Increased for more creative, hookable headlines
+      maxOutputTokens: 2048,
     });
 
     return {
@@ -67,6 +91,7 @@ Respond with ONLY valid JSON (no markdown):
       originalUrl: item.url,
       summary: result.summary,
       tags: result.tags || [],
+      category: result.category || "news",
       relevanceScore: result.relevanceScore || 50,
       whyItMatters: result.whyItMatters,
       slackApproved: false,

@@ -18,6 +18,13 @@ export type NewsSource =
   | "indie_hackers";
 
 // -------------------------------------------
+// Article Category
+// -------------------------------------------
+
+export type ArticleCategory = "news" | "actionable";
+
+
+// -------------------------------------------
 // Raw Item (from crawlers)
 // -------------------------------------------
 
@@ -45,6 +52,7 @@ export const ProcessedItemSchema = z.object({
   originalUrl: z.string().url(),
   summary: z.string(),
   tags: z.array(z.string()),
+  category: z.enum(["news", "actionable"]),
   relevanceScore: z.number().min(0).max(100),
   whyItMatters: z.string(),
   slackApproved: z.boolean().default(false),
@@ -68,6 +76,7 @@ export const PublishedArticleSchema = z.object({
   summary: z.string().optional(),
   originalUrl: z.string().url().optional(),
   source: z.string().optional(),
+  category: z.enum(["news", "actionable"]).optional(),
   tags: z.array(z.string()).optional(),
   publishedAt: z.date(),
   createdAt: z.date(),
@@ -145,6 +154,7 @@ export interface NotionProcessedItem {
   OriginalURL: { url: string };
   Summary: { rich_text: { text: { content: string } }[] };
   Tags: { multi_select: { name: string }[] };
+  Category: { select: { name: string } };
   RelevanceScore: { number: number };
   SlackApproved: { checkbox: boolean };
   ArticleContent: { rich_text: { text: { content: string } }[] };

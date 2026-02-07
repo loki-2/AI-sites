@@ -1,16 +1,18 @@
 // ===========================================
-// Simplified Crawl Pipeline
+// Simplified Crawl Pipeline v2
 // ===========================================
-// New workflow: Crawl → Headline Writer → Slack
+// Workflow: Crawl (with relevance filtering) → Headline Writer → Processed DB → Slack
 
 import { NextRequest, NextResponse } from "next/server";
-import { crawlAllSources } from "@/lib/crawlers";
-import { addRawItemsBatch } from "@/lib/notion/operations";
+import { crawlAllSources, getSourcesStats } from "@/lib/crawlers";
 import { generateHeadlines } from "@/lib/agents/headline";
 import { addProcessedItem } from "@/lib/notion/operations";
 import { postItemsForApproval, postNotification } from "@/lib/slack/messages";
 
-// Verify cron secret for security
+// -------------------------------------------
+// Auth Verification
+// -------------------------------------------
+
 function verifyCronSecret(request: NextRequest): boolean {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
@@ -23,86 +25,143 @@ function verifyCronSecret(request: NextRequest): boolean {
   return authHeader === `Bearer ${cronSecret}`;
 }
 
+// -------------------------------------------
+// Main Pipeline
+// -------------------------------------------
+
 export async function POST(request: NextRequest) {
-  // Verify authorization
   if (!verifyCronSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    console.log("[Simple Crawl] Starting simplified pipeline...");
+    console.log("\n[Pipeline] ========================================");
+    console.log("[Pipeline] Starting vibe coder news pipeline...");
     const startTime = Date.now();
 
-    // Step 1: Crawl sources (now returns ~50 items)
-    console.log("[Simple Crawl] Step 1: Crawling sources...");
-    const rawItems = await crawlAllSources({ hoursBack: 24 });
-    console.log(`[Simple Crawl] Crawled ${rawItems.length} items`);
+    // Log source configuration
+    const sourceStats = getSourcesStats();
+    console.log("[Pipeline] Sources:", JSON.stringify(sourceStats));
 
-    if (rawItems.length === 0) {
-      await postNotification("⚠️ Crawl completed but found no new items.");
+    // Step 1: Crawl with relevance filtering
+    console.log("\n[Pipeline] Step 1: Crawling sources...");
+    const crawlResult = await crawlAllSources({
+      hoursBack: 24,
+      minRelevanceScore: 30, // Only vibe-coder-relevant content
+      maxTotalItems: 30,     // Limit to top 30 items
+    });
+
+    const { items: scoredItems, stats: crawlStats } = crawlResult;
+
+    console.log(`[Pipeline] Crawled: ${crawlStats.totals.rawItems} raw → ${crawlStats.totals.finalItems} filtered`);
+
+    if (scoredItems.length === 0) {
+      await postNotification(
+        `⚠️ Crawl completed but no relevant items found.\n` +
+        `• Sources checked: ${crawlStats.totals.sourcesEnabled}\n` +
+        `• Raw items: ${crawlStats.totals.rawItems}\n` +
+        `• Min score required: 30`
+      );
       return NextResponse.json({
         success: true,
-        message: "No items found",
-        stats: { crawled: 0 },
+        message: "No relevant items found",
+        stats: {
+          crawled: crawlStats.totals.rawItems,
+          filtered: 0,
+          sources: crawlStats.totals.sourcesEnabled,
+        },
       });
     }
 
-    // Step 2: Save to Notion Raw DB
-    console.log("[Simple Crawl] Step 2: Saving to Notion...");
-    await addRawItemsBatch(rawItems);
+    // Convert ScoredItems to RawItems for headline generator
+    // The scored items already have good metadata
+    const rawItems = scoredItems.map(item => ({
+      id: item.id,
+      title: item.title,
+      url: item.url,
+      source: item.source,
+      content: item.content,
+      score: item.relevanceScore, // Use relevance score
+      crawledAt: item.crawledAt,
+      author: item.author,
+      commentCount: item.commentCount,
+    }));
 
-    // Step 3: Generate headlines with AI
-    console.log("[Simple Crawl] Step 3: Generating headlines...");
+    // Step 2: Generate headlines with AI
+    console.log("\n[Pipeline] Step 2: Generating headlines...");
     const headlineItems = await generateHeadlines(rawItems);
-    console.log(`[Simple Crawl] Generated ${headlineItems.length} headlines`);
+    console.log(`[Pipeline] Generated ${headlineItems.length} headlines`);
 
     if (headlineItems.length === 0) {
-      await postNotification("⚠️ No headlines generated from crawled items.");
+      await postNotification(
+        `⚠️ No headlines generated.\n` +
+        `• Items crawled: ${scoredItems.length}\n` +
+        `• Headlines generated: 0\n` +
+        `• Check Gemini API logs`
+      );
       return NextResponse.json({
         success: true,
         message: "No headlines generated",
-        stats: { crawled: rawItems.length, headlines: 0 },
+        stats: {
+          crawled: crawlStats.totals.rawItems,
+          filtered: scoredItems.length,
+          headlines: 0
+        },
       });
     }
 
-    // Step 4: Save to Processed DB
-    console.log("[Simple Crawl] Step 4: Saving processed items...");
+    // Step 3: Save to Processed DB
+    console.log("\n[Pipeline] Step 3: Saving to Processed DB...");
     const savedItems = [];
     for (const item of headlineItems) {
-      const pageId = await addProcessedItem(item);
-      savedItems.push({ ...item, notionPageId: pageId });
+      try {
+        const pageId = await addProcessedItem(item);
+        savedItems.push({ ...item, notionPageId: pageId });
+      } catch (err) {
+        console.error(`[Pipeline] Failed to save item: ${item.title}`, err);
+      }
     }
+    console.log(`[Pipeline] Saved ${savedItems.length}/${headlineItems.length} items to Notion`);
 
-    // Step 5: Post to Slack for approval
-    console.log("[Simple Crawl] Step 5: Posting to Slack...");
+    // Step 4: Post to Slack
+    console.log("\n[Pipeline] Step 4: Posting to Slack...");
     await postItemsForApproval(savedItems);
 
     const duration = Math.round((Date.now() - startTime) / 1000);
-    console.log(`[Simple Crawl] Pipeline completed in ${duration}s`);
+    console.log(`\n[Pipeline] ========================================`);
+    console.log(`[Pipeline] Complete in ${duration}s`);
+    console.log(`[Pipeline] ========================================\n`);
 
+    // Send summary notification
     await postNotification(
-      `✅ New headlines ready for review!\n• ${rawItems.length} items crawled\n• ${headlineItems.length} headlines generated\n• Check Slack to approve your favorites`
+      `✅ Vibe coder news ready for review!\n` +
+      `• ${crawlStats.totals.rawItems} items crawled\n` +
+      `• ${scoredItems.length} passed relevance filter\n` +
+      `• ${savedItems.length} headlines generated\n` +
+      `• Sources: ${sourceStats.rss.sources.join(', ') || 'None'}, ${sourceStats.reddit.sources.join(', ') || 'None'}`
     );
 
     return NextResponse.json({
       success: true,
       stats: {
-        crawled: rawItems.length,
-        headlines: headlineItems.length,
+        sources: crawlStats.totals.sourcesEnabled,
+        rawItems: crawlStats.totals.rawItems,
+        filtered: scoredItems.length,
+        headlines: savedItems.length,
         duration: `${duration}s`,
       },
     });
   } catch (error) {
-    console.error("[Simple Crawl] Error:", error);
-    await postNotification(`❌ Crawl failed: ${(error as Error).message}`);
+    console.error("[Pipeline] Error:", error);
+    await postNotification(`❌ Pipeline failed: ${(error as Error).message}`);
     return NextResponse.json(
-      { error: "Crawl failed", details: (error as Error).message },
+      { error: "Pipeline failed", details: (error as Error).message },
       { status: 500 }
     );
   }
 }
 
-// Also support GET for easy testing
+// Support GET for easy testing
 export async function GET(request: NextRequest) {
   return POST(request);
 }
