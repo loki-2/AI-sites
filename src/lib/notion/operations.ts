@@ -143,6 +143,9 @@ export async function addProcessedItem(item: ProcessedItem): Promise<string> {
       Summary: {
         rich_text: [{ text: { content: truncateForNotion(item.summary) } }],
       },
+      CoverImage: {
+        url: item.coverImage || null,
+      },
       Tags: {
         multi_select: item.tags.map((tag) => ({ name: tag })),
       },
@@ -200,6 +203,10 @@ export async function updateProcessedItem(
     properties["ReadyToPublish\t"] = { checkbox: updates.readyToPublish };
   }
 
+  if (updates.coverImage !== undefined) {
+    properties.CoverImage = { url: updates.coverImage || null };
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const notion = getNotion();
   await notion.pages.update({
@@ -233,6 +240,7 @@ export async function getApprovedItemsForWriting(): Promise<ProcessedItem[]> {
       title: props.Title?.title?.[0]?.text?.content || "",
       originalUrl: props.OriginalURL?.url || "",
       summary: props.Summary?.rich_text?.[0]?.text?.content || "",
+      coverImage: props.CoverImage?.url || undefined,
       tags: props.Tags?.multi_select?.map((t: any) => t.name) || [],
       category: (props.Category?.select?.name as "news" | "actionable") || "news",
       relevanceScore: props.RelevanceScore?.number || 0,
@@ -270,6 +278,7 @@ export async function getItemsReadyToPublish(): Promise<ProcessedItem[]> {
       title: props.Title?.title?.[0]?.text?.content || "",
       originalUrl: props.OriginalURL?.url || "",
       summary: props.Summary?.rich_text?.[0]?.text?.content || "",
+      coverImage: props.CoverImage?.url || undefined,
       tags: props.Tags?.multi_select?.map((t: any) => t.name) || [],
       category: (props.Category?.select?.name as "news" | "actionable") || "news",
       relevanceScore: props.RelevanceScore?.number || 0,

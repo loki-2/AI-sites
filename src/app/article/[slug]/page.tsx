@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { getArticleBySlug, getLatestArticles } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,11 +38,13 @@ export async function generateMetadata({
       type: "article",
       publishedTime: article.publishedAt.toISOString(),
       tags: article.tags,
+      images: article.coverImage ? [article.coverImage] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title: article.title,
       description: article.summary || article.content.slice(0, 160),
+      images: article.coverImage ? [article.coverImage] : undefined,
     },
   };
 }
@@ -61,7 +64,6 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   const formattedDate = new Date(article.publishedAt).toLocaleDateString(
     "en-US",
     {
-      weekday: "long",
       month: "long",
       day: "numeric",
       year: "numeric",
@@ -69,13 +71,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   );
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vibecoders.news";
+  const coverImage = article.coverImage || '/article-placeholder.png';
 
   // Generate schema markup for SEO
   const articleSchema = generateArticleSchema({
     headline: article.title,
     description: article.summary || article.content.slice(0, 160),
     datePublished: article.publishedAt.toISOString(),
-    image: `${baseUrl}/og-image.png`,
+    image: article.coverImage || `${baseUrl}/og-image.png`,
     url: `${baseUrl}/article/${article.slug}`,
     publisher: {
       name: "VibeCoders News",
@@ -91,53 +94,78 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   return (
     <>
       <SchemaMarkup schema={[articleSchema, breadcrumbSchema]} />
-      <article className="max-w-4xl mx-auto px-4 py-8">
+
+      {/* Cover Image */}
+      <div className="relative w-full h-[300px] md:h-[400px] bg-muted">
+        <Image
+          src={coverImage}
+          alt={article.title}
+          fill
+          className="object-cover"
+          priority
+        />
+      </div>
+
+      {/* Article Content */}
+      <article className="max-w-4xl mx-auto px-4 md:px-8 py-8">
         {/* Back link */}
         <Link
           href="/"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
         >
           ← Back to all articles
         </Link>
 
         {/* Article Header */}
         <header className="mb-8">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-            {article.source && (
-              <Badge variant="secondary" className="text-xs font-medium">
-                {article.source}
-              </Badge>
-            )}
-            <span>{formattedDate}</span>
-          </div>
+          {/* Category Badge */}
+          {article.category && (
+            <Badge className="mb-4 bg-primary text-primary-foreground font-semibold uppercase tracking-wider">
+              {article.category === "actionable" ? "LEARNING" : "NEWS"}
+            </Badge>
+          )}
 
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
+          {/* Title */}
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 leading-tight">
             {article.title}
           </h1>
 
-          {article.summary && (
-            <p className="text-lg text-muted-foreground leading-relaxed">
+          {/* Author and Date */}
+          <div className="flex items-center gap-3 text-muted-foreground text-sm md:text-base">
+            <span className="font-semibold">Abhishek</span>
+            <span>·</span>
+            <time dateTime={article.publishedAt.toISOString()}>
+              {formattedDate}
+            </time>
+          </div>
+        </header>
+
+        {/* Summary */}
+        {article.summary && (
+          <div className="mb-8 p-6 bg-muted/30 border-l-4 border-primary">
+            <p className="text-lg md:text-xl text-foreground/90 leading-relaxed font-medium">
               {article.summary}
             </p>
-          )}
+          </div>
+        )}
 
-          {article.tags && article.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-4">
-              {article.tags.map((tag) => (
-                <Badge key={tag} variant="outline">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </header>
+        {/* Tags */}
+        {article.tags && article.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-8">
+            {article.tags.map((tag) => (
+              <Badge key={tag} variant="outline" className="text-sm">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         <Separator className="my-8" />
 
-        {/* Article Content */}
-        <div className="prose prose-neutral dark:prose-invert max-w-none">
+        {/* Article Body - Improved Typography */}
+        <div className="article-content">
           {article.content.split("\n\n").map((paragraph, index) => (
-            <p key={index} className="mb-4 text-base leading-relaxed">
+            <p key={index} className="mb-6 text-lg leading-relaxed text-foreground/90">
               {paragraph}
             </p>
           ))}
@@ -145,13 +173,15 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         {/* Source Link */}
         {article.originalUrl && (
-          <div className="mt-8 p-4 bg-muted/50 border border-border">
-            <p className="text-sm text-muted-foreground mb-2">Original Source</p>
+          <div className="mt-12 p-6 bg-muted/30 border border-border rounded-lg">
+            <p className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+              Original Source
+            </p>
             <a
               href={article.originalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-primary hover:underline break-all"
+              className="text-base text-primary hover:underline break-all font-medium"
             >
               {article.originalUrl}
             </a>
@@ -160,7 +190,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         {/* Share Actions */}
         <div className="mt-8 flex items-center gap-4">
-          <span className="text-sm text-muted-foreground">Share:</span>
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Share:
+          </span>
           <Button
             variant="outline"
             size="sm"
@@ -200,8 +232,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           <>
             <Separator className="my-12" />
             <section>
-              <h2 className="text-xl font-semibold mb-6">More Stories</h2>
-              <div className="grid gap-4 md:grid-cols-3">
+              <h2 className="text-2xl font-bold mb-6">More Stories</h2>
+              <div className="space-y-6">
                 {relatedArticles.map((relatedArticle) => (
                   <ArticleCard key={relatedArticle.id} article={relatedArticle} />
                 ))}

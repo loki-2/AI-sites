@@ -130,11 +130,31 @@ async function crawlSingleFeed(
         || entry.summary
         || '';
 
+      // Extract cover image from various RSS fields
+      let coverImage: string | undefined;
+
+      // 1. Check media:content tag (common in RSS feeds)
+      if ((entry as any).media?.$ && (entry as any).media.$.url) {
+        coverImage = (entry as any).media.$.url;
+      }
+      // 2. Check enclosure tag (podcast/media feeds)
+      else if (entry.enclosure?.url && entry.enclosure.type?.startsWith('image/')) {
+        coverImage = entry.enclosure.url;
+      }
+      // 3. Parse first image from content HTML
+      else if (entry.content) {
+        const imgMatch = entry.content.match(/<img[^>]+src="([^">]+)"/);
+        if (imgMatch && imgMatch[1]) {
+          coverImage = imgMatch[1];
+        }
+      }
+
       items.push({
         title: entry.title || 'Untitled',
         url: entry.link,
         source: source.id,
         content: content.slice(0, 1000), // Limit content length
+        coverImage,
         crawledAt: new Date(),
         score: 0,
         author: entry.creator || (entry as any).author,

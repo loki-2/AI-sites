@@ -38,6 +38,7 @@ export async function insertArticle(article: {
   slug: string;
   content: string;
   summary?: string;
+  coverImage?: string;
   originalUrl?: string;
   source?: string;
   tags?: string[];
@@ -49,6 +50,7 @@ export async function insertArticle(article: {
       slug: article.slug,
       content: article.content,
       summary: article.summary,
+      cover_image: article.coverImage,
       original_url: article.originalUrl,
       source: article.source,
       tags: article.tags,
@@ -91,6 +93,7 @@ export async function getArticleBySlug(
       slug: data.slug,
       content: data.content,
       summary: data.summary,
+      coverImage: data.cover_image,
       originalUrl: data.original_url,
       source: data.source,
       tags: data.tags,
@@ -131,8 +134,10 @@ export async function getLatestArticles(
       slug: article.slug,
       content: article.content,
       summary: article.summary,
+      coverImage: article.cover_image,
       originalUrl: article.original_url,
       source: article.source,
+      category: article.category,
       tags: article.tags,
       publishedAt: new Date(article.published_at),
       createdAt: new Date(article.created_at),

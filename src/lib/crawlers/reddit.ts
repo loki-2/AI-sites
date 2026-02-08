@@ -44,6 +44,16 @@ interface RedditPost {
     link_flair_text?: string;
     over_18: boolean;
     stickied: boolean;
+    thumbnail?: string;
+    preview?: {
+      images: Array<{
+        source: {
+          url: string;
+          width: number;
+          height: number;
+        };
+      }>;
+    };
   };
 }
 
@@ -180,12 +190,31 @@ async function crawlSingleSubreddit(
         ? postData.selftext.slice(0, 1000)
         : `Score: ${postData.score} | Comments: ${postData.num_comments}`;
 
+      // Extract cover image from Reddit post
+      let coverImage: string | undefined;
+
+      // 1. Try to get high-quality preview image
+      if (postData.preview?.images?.[0]?.source?.url) {
+        // Decode HTML entities in the URL
+        coverImage = postData.preview.images[0].source.url.replace(/&amp;/g, '&');
+      }
+      // 2. Fallback to thumbnail if it's a valid image URL
+      else if (postData.thumbnail && postData.thumbnail.startsWith('http')) {
+        // Skip default thumbnails like 'self', 'default', 'nsfw'
+        if (!['self', 'default', 'nsfw', 'spoiler'].includes(postData.thumbnail)) {
+          coverImage = postData.thumbnail;
+        }
+      }
+      // 3. For text posts or posts without images, coverImage will be undefined
+      // The UI will show a fallback placeholder image
+
       items.push({
         id: postData.id,
         title: postData.title,
         url: postUrl,
         source: `reddit_${source.subreddit}`,
         content: content,
+        coverImage,
         score: postData.score,
         crawledAt: new Date(),
         author: postData.author,

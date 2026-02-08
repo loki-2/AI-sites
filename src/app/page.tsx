@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { getLatestArticles } from "@/lib/supabase/client";
 import { ArticleCard } from "@/components/ArticleCard";
 import { ArticleSkeleton } from "@/components/ArticleSkeleton";
-import { Separator } from "@/components/ui/separator";
 
 // Revalidate every 5 minutes
 export const revalidate = 300;
@@ -21,79 +20,50 @@ async function ArticlesFeed() {
     );
   }
 
-  // First article is featured
-  const [featuredArticle, ...restArticles] = articles;
-
   return (
-    <div className="space-y-8">
-      {/* Featured Article */}
-      {featuredArticle && (
-        <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
-            Latest
-          </h2>
-          <ArticleCard article={featuredArticle} featured />
-        </section>
-      )}
-
-      <Separator />
-
-      {/* Recent Articles Grid */}
-      {restArticles.length > 0 && (
-        <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
-            Recent Stories
-          </h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {restArticles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
-            ))}
-          </div>
-        </section>
-      )}
+    <div className="space-y-6">
+      {articles.map((article) => (
+        <ArticleCard key={article.id} article={article} />
+      ))}
     </div>
   );
 }
 
 function ArticlesFeedSkeleton() {
   return (
-    <div className="space-y-8">
-      <section>
-        <div className="h-4 w-16 bg-muted rounded mb-4" />
-        <ArticleSkeleton featured />
-      </section>
-      <Separator />
-      <section>
-        <div className="h-4 w-24 bg-muted rounded mb-4" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <ArticleSkeleton key={i} />
-          ))}
-        </div>
-      </section>
+    <div className="space-y-6">
+      {[...Array(5)].map((_, i) => (
+        <ArticleSkeleton key={i} />
+      ))}
     </div>
   );
 }
 
 export default function HomePage() {
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Hero Section */}
-      <section className="mb-12">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-          News for builders who{" "}
-          <span className="text-primary">ship fast</span>
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl">
-          AI-curated daily digest of the most relevant news for vibe coders.
-          Tools, workflows, and insights to help you build better.
-        </p>
-      </section>
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* Latest News Section */}
+      <section className="mb-8">
+        <div className="flex items-center justify-between mb-12">
+          <h1 className="text-5xl md:text-6xl font-extrabold text-primary tracking-tighter">
+            Techcrunch for Vibecoders
+          </h1>
+          {/* <a
+            href="/"
+            className="flex items-center gap-2 px-4 py-2 border border-border rounded-full hover:border-primary transition-colors text-sm"
+          >
+            See More
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a> */}
+        </div>
 
-      {/* Articles Feed */}
-      <Suspense fallback={<ArticlesFeedSkeleton />}>
-        <ArticlesFeed />
-      </Suspense>
+        {/* Articles Feed */}
+        <Suspense fallback={<ArticlesFeedSkeleton />}>
+          <ArticlesFeed />
+        </Suspense>
+      </section>
     </div>
   );
 }

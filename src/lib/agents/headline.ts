@@ -90,6 +90,7 @@ Respond with ONLY valid JSON:
       title: result.headline,
       originalUrl: item.url,
       summary: result.summary,
+      coverImage: item.coverImage,
       tags: result.tags || [],
       category: result.category || "news",
       relevanceScore: result.relevanceScore || 50,

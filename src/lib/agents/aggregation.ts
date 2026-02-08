@@ -59,7 +59,7 @@ Respond with a JSON object (no markdown, just raw JSON):
     ]);
 
     const content = response.content as string;
-    
+
     // Parse JSON from response (handle potential markdown wrapping)
     let jsonStr = content;
     if (content.includes("```json")) {
@@ -75,6 +75,7 @@ Respond with a JSON object (no markdown, just raw JSON):
       title: item.title,
       originalUrl: item.url,
       summary: parsed.summary,
+      coverImage: item.coverImage,
       tags: parsed.tags || [],
       category: "news" as const, // Default to news, headline writer will classify
       relevanceScore: parsed.relevanceScore || 50,

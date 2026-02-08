@@ -1,107 +1,78 @@
 "use client";
 
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import Image from "next/image";
 import type { PublishedArticle } from "@/types";
 
 interface ArticleCardProps {
   article: PublishedArticle;
-  featured?: boolean;
 }
 
-export function ArticleCard({ article, featured = false }: ArticleCardProps) {
-  const formattedDate = new Date(article.publishedAt).toLocaleDateString(
-    "en-US",
-    {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }
-  );
+// Helper function to format time ago
+function getTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+  const diffInDays = Math.floor(diffInHours / 24);
 
-  if (featured) {
-    return (
-      <Card className="border-2 border-primary/20 bg-card hover:border-primary/40 transition-colors">
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-            {article.source && (
-              <Badge variant="secondary" className="text-xs font-medium">
-                {article.source}
-              </Badge>
-            )}
-            <span>{formattedDate}</span>
+  if (diffInHours < 1) {
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    return `${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''} ago`;
+  } else if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours !== 1 ? 's' : ''} ago`;
+  } else {
+    return `${diffInDays} day${diffInDays !== 1 ? 's' : ''} ago`;
+  }
+}
+
+// Map category to display name
+function getCategoryDisplay(category?: string): string {
+  if (category === "actionable") return "LEARNING";
+  return "NEWS";
+}
+
+export function ArticleCard({ article }: ArticleCardProps) {
+  const timeAgo = getTimeAgo(new Date(article.publishedAt));
+  const categoryDisplay = getCategoryDisplay(article.category);
+  const coverImage = article.coverImage || '/article-placeholder.png';
+
+  return (
+    <article className="border-b border-border pb-6 last:border-b-0">
+      <div className="flex gap-4">
+        {/* Cover Image */}
+        <div className="relative w-32 h-24 flex-shrink-0 bg-muted overflow-hidden">
+          <Image
+            src={coverImage}
+            alt={article.title}
+            fill
+            className="object-cover"
+            sizes="128px"
+          />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          {/* Category Badge */}
+          <div className="mb-2">
+            <span className="text-xs font-semibold text-primary uppercase tracking-wider">
+              {categoryDisplay}
+            </span>
           </div>
+
+          {/* Title */}
           <Link href={`/article/${article.slug}`}>
-            <h2 className="text-2xl font-bold leading-tight hover:text-primary transition-colors">
+            <h2 className="text-xl md:text-2xl font-bold leading-tight mb-2 hover:text-primary transition-colors cursor-pointer">
               {article.title}
             </h2>
           </Link>
-        </CardHeader>
-        <CardContent>
-          {article.summary && (
-            <p className="text-muted-foreground mb-4 line-clamp-3">
-              {article.summary}
-            </p>
-          )}
-          <div className="flex items-center justify-between">
-            <div className="flex flex-wrap gap-1">
-              {article.tags?.slice(0, 3).map((tag) => (
-                <Badge key={tag} variant="outline" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-            <Link href={`/article/${article.slug}`}>
-              <Button variant="default" size="sm">
-                Read More
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
-  return (
-    <Card className="border border-border hover:border-primary/40 transition-colors">
-      <CardHeader className="pb-2">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-          {article.source && (
-            <Badge variant="secondary" className="text-xs font-medium">
-              {article.source}
-            </Badge>
-          )}
-          <span>{formattedDate}</span>
-        </div>
-        <Link href={`/article/${article.slug}`}>
-          <h3 className="text-lg font-semibold leading-tight hover:text-primary transition-colors">
-            {article.title}
-          </h3>
-        </Link>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {article.summary && (
-          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-            {article.summary}
-          </p>
-        )}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-wrap gap-1">
-            {article.tags?.slice(0, 2).map((tag) => (
-              <Badge key={tag} variant="outline" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
+          {/* Author and Time */}
+          <div className="text-sm text-muted-foreground">
+            <span className="font-semibold">Abhishek</span>
+            <span className="mx-2">·</span>
+            <span className="font-semibold">{timeAgo}</span>
           </div>
-          <Link href={`/article/${article.slug}`}>
-            <Button variant="ghost" size="sm" className="text-xs">
-              Read →
-            </Button>
-          </Link>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </article>
   );
 }

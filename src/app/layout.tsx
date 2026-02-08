@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Manrope } from "next/font/google";
 import "./globals.css";
 import { SchemaMarkup } from "@/components/SchemaMarkup";
 import { generateOrganizationSchema } from "@/lib/seo/schemas";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -86,29 +82,22 @@ export default function RootLayout({
         <SchemaMarkup schema={organizationSchema} />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+        className={`${manrope.variable} font-sans antialiased min-h-screen`}
       >
         <div className="min-h-screen flex flex-col">
           {/* Header */}
-          <header className="border-b border-border bg-background sticky top-0 z-50">
-            <div className="max-w-6xl mx-auto px-4 py-4">
+          <header className="border-b border-border bg-foreground text-background sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto px-4 py-3">
               <div className="flex items-center justify-between">
                 <a href="/" className="flex items-center gap-2">
-                  <span className="text-2xl font-bold tracking-tight">
+                  <span className="text-xl font-bold tracking-tight">
                     VibeCoders
                   </span>
-                  <span className="text-xs font-medium bg-primary text-primary-foreground px-2 py-0.5 uppercase tracking-wider">
-                    News
-                  </span>
                 </a>
-                <nav className="flex items-center gap-6">
-                  <span className="text-sm text-muted-foreground">
-                    {new Date().toLocaleDateString("en-US", {
-                      weekday: "long",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
+                <nav className="hidden md:flex items-center gap-6 text-sm">
+                  <a href="/" className="hover:text-primary transition-colors">Latest</a>
+                  <a href="/" className="hover:text-primary transition-colors">News</a>
+                  <a href="/" className="hover:text-primary transition-colors">Learning</a>
                 </nav>
               </div>
             </div>
@@ -130,7 +119,7 @@ export default function RootLayout({
                   </p>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <p>Built with AI agents. Curated by humans.</p>
+                  <p></p>
                 </div>
               </div>
             </div>
