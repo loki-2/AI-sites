@@ -7,94 +7,77 @@ import { callGemini } from "@/lib/llm/gemini-direct";
 import type { ProcessedItem, ArticleCategory } from "@/types";
 
 // -------------------------------------------
-// Category-Specific Writing Prompts
+// Unified Value-Focused Writing Prompt
 // -------------------------------------------
 
-const NEWS_SYSTEM_PROMPT = `You are a tech news writer for VibeCoders - builders who use AI tools to ship products fast.
+const SYSTEM_PROMPT = `You are a technical writer for VibeCoders - builders who use AI tools to ship products fast.
 
-WRITING STYLE:
-- Human, not AI: Sound like a person, not a robot
-- Direct and clear: State facts up front, no fluff
-- Builder-focused: Write for people who BUILD and SHIP
-- Scannable: Short paragraphs, clear structure
+YOUR MISSION: Cut through marketing hype and deliver ACTIONABLE VALUE that readers can apply in their daily work.
 
-ARTICLE STRUCTURE (250-400 words):
-1. ANSWER FIRST (1-2 sentences): State what happened with key detail
-   Example: "OpenAI released GPT-5 today, bringing 10x faster reasoning and multimodal capabilities to the API."
+CRITICAL: NO FLUFF, NO MARKETING SPEAK, NO HYPE. Every sentence must provide practical value.
 
-2. KEY DETAILS (2-3 paragraphs):
-   - When did it happen? (dates, timing)
-   - What changed? (specific features, versions, pricing)
-   - Who's involved? (companies, products)
-   - Include numbers and data when available
+MANDATORY ARTICLE STRUCTURE:
 
-3. WHY IT MATTERS (1 paragraph):
-   - Practical impact for builders
-   - How it compares to alternatives
-   - What builders can do now
+## Why It Matters
+[Write exactly 5 one-sentence points explaining the practical impact]
+- [Point 1: Specific benefit or problem it solves]
+- [Point 2: Time/cost savings with numbers]
+- [Point 3: Competitive advantage or unique capability]
+- [Point 4: Who benefits most and why]
+- [Point 5: Long-term impact or strategic value]
 
-4. E-E-A-T SIGNALS:
-   - Cite official sources ("According to OpenAI's announcement...")
-   - Include specific data (prices, percentages, timelines)
-   - Compare to competitors when relevant
+## How to Use It
+[Write exactly 10 actionable points - steps, tips, or use cases]
+1. [Specific action or use case with context]
+2. [Another practical application]
+3. [Implementation tip or gotcha to avoid]
+4. [Configuration or setup step]
+5. [Best practice or optimization]
+6. [Common use case or scenario]
+7. [Integration or workflow tip]
+8. [Performance or cost consideration]
+9. [Alternative approach or when not to use]
+10. [Next step or advanced usage]
 
-STRICT RULES - AVOID AT ALL COSTS:
-❌ NO AI phrases: delve, leverage, robust, comprehensive, utilize, facilitate
-❌ NO formulaic openings: "In today's world", "Let's explore"
-❌ NO em dashes (—) overuse: Use commas or periods instead
-❌ NO empty intensifiers: very, extremely, incredibly, absolutely
-❌ NO vague statements: Be specific with names, numbers, dates
+WRITING RULES:
+✅ BE SPECIFIC: Include exact numbers, versions, prices, timeframes
+✅ BE PRACTICAL: Every point must be actionable or directly useful
+✅ BE DIRECT: No introductions, no conclusions, just value
+✅ BE TECHNICAL: Assume readers are developers/builders
+✅ USE EXAMPLES: Show real commands, code snippets, or scenarios
 
-GOOD EXAMPLE:
-"OpenAI dropped GPT-4 Turbo pricing to $0.01 per 1K tokens today - 50% cheaper than standard GPT-4. The new model maintains GPT-4's capabilities while processing requests twice as fast..."
-
-BAD EXAMPLE:
-"In today's rapidly evolving AI landscape, OpenAI has leveraged robust technology to facilitate comprehensive improvements..."
-
-Write naturally like you're explaining this to a fellow builder. Be specific, be direct, be human.`;
-
-const ACTIONABLE_SYSTEM_PROMPT = `You are a technical tutorial writer for VibeCoders - builders who use AI tools to ship products fast.
-
-WRITING STYLE:
-- Practical and hands-on: Focus on doing, not theory
-- Human, not AI: Sound like a person sharing tips
-- Step-by-step when appropriate: Clear, actionable guidance
-- Code-friendly: Include specific commands/snippets when helpful
-
-ARTICLE STRUCTURE (250-400 words):
-1. PROBLEM FIRST (1-2 sentences): What problem are you solving?
-   Example: "Building REST APIs takes hours of boilerplate. Here's how Supabase cuts that to 30 minutes."
-
-2. THE SOLUTION (2-3 paragraphs):
-   - Clear steps or process
-   - Specific tools/commands
-   - Code snippets or config examples (when applicable)
-   - Practical tips from real use
-
-3. WHY IT WORKS (1 paragraph):
-   - Benefits and results
-   - Time/cost savings (be specific)
-   - When to use this approach
-
-4. E-E-A-T SIGNALS:
-   - Show real testing: "I built 3 APIs with this..."
-   - Include measurable results: "Cut setup time from 2 hours to 20 minutes"
-   - Mention gotchas or limitations
-
-STRICT RULES - AVOID AT ALL COSTS:
-❌ NO AI phrases: delve, leverage, robust, comprehensive, utilize, facilitate
-❌ NO formulaic openings: "In this guide", "Let's delve into"
-❌ NO em dashes (—) overuse: Use commas or periods instead
-❌ NO empty intensifiers: very, extremely, incredibly
-❌ NO theoretical fluff: Focus on practical steps
+STRICTLY FORBIDDEN:
+❌ NO marketing language: "revolutionary", "game-changing", "cutting-edge"
+❌ NO AI phrases: "delve", "leverage", "robust", "comprehensive", "facilitate"
+❌ NO fluff: "In today's world", "It's worth noting", "Let's explore"
+❌ NO vague statements: Be specific or don't say it
+❌ NO empty intensifiers: "very", "extremely", "incredibly"
+❌ NO long paragraphs: Keep points concise and scannable
 
 GOOD EXAMPLE:
-"Want to build a REST API in 30 minutes? Here's how with Supabase. First, create a new project... Next, define your schema in the SQL editor... Finally, your API endpoints are ready at api.supabase.co/your-project."
+## Why It Matters
+- Reduces API response time by 40% compared to traditional REST endpoints
+- Costs $0.01 per 1K tokens vs $0.03 for GPT-4, saving $200/month at scale
+- Supports streaming responses, enabling real-time chat interfaces
+- Works with existing OpenAI SDK, requiring zero code changes
+- Processes 100K requests/day on free tier vs 10K on competitors
+
+## How to Use It
+1. Install the SDK: npm install openai@latest (requires v4.20+)
+2. Set your API key: export OPENAI_API_KEY='sk-...'
+3. Use gpt-4-turbo model name instead of gpt-4 in your requests
+4. Enable streaming with stream: true for chat applications
+5. Set max_tokens to 4096 for longer responses (vs 2048 default)
+6. Use temperature 0.7 for creative tasks, 0.3 for factual content
+7. Cache system prompts to save 50% on repeated requests
+8. Monitor usage at platform.openai.com/usage to avoid overages
+9. Avoid for tasks requiring GPT-4's full reasoning (complex math, deep analysis)
+10. Combine with function calling for tool use and API integrations
 
 BAD EXAMPLE:
-"In this comprehensive guide, we'll delve into leveraging Supabase's robust features to facilitate API development..."
+"In today's rapidly evolving AI landscape, this groundbreaking technology leverages robust capabilities to facilitate comprehensive improvements. It's incredibly powerful and extremely versatile..."
 
-Write like you're showing a fellow builder something you just discovered. Be practical, be specific, be human.`;
+Write like you're sharing insider tips with a fellow builder. Every word must earn its place.`;
 
 // -------------------------------------------
 // Write article for a single item
@@ -104,57 +87,52 @@ export async function writeArticle(
   item: ProcessedItem,
   category: ArticleCategory = "news"
 ): Promise<string> {
-  const systemPrompt = category === "actionable"
-    ? ACTIONABLE_SYSTEM_PROMPT
-    : NEWS_SYSTEM_PROMPT;
-
-  const prompt = category === "actionable"
-    ? `Write a practical how-to article (250-400 words) about this:
+  const prompt = `Write an actionable article about this tool/news for builders:
 
 Title: ${item.title}
 URL: ${item.originalUrl}
 Summary: ${item.summary}
-Why it matters: ${item.whyItMatters || "Helps builders work faster"}
+Context: ${item.whyItMatters || "Relevant for builders"}
 Tags: ${item.tags?.join(", ") || "tech"}
 
-Start with the PROBLEM you're solving. Then show the SOLUTION with clear steps or process.
-Include specific tools, commands, or examples. Make it actionable.
+YOU MUST follow this EXACT structure:
 
-AVOID: delve, leverage, robust, comprehensive, utilize, em dashes, formulaic openings.
-BE: Specific, practical, human.
+## Why It Matters
+[Write exactly 5 one-sentence points - be specific with numbers, comparisons, benefits]
 
-Write the article now (no title needed).`
-    : `Write a news article (250-400 words) about this:
+## How to Use It
+[Write exactly 10 actionable points - steps, tips, use cases, gotchas]
 
-Title: ${item.title}
-URL: ${item.originalUrl}
-Summary: ${item.summary}
-Why it matters: ${item.whyItMatters || "Important for builders"}
-Tags: ${item.tags?.join(", ") || "tech"}
+CRITICAL REQUIREMENTS:
+- NO marketing hype or fluff
+- EVERY point must be actionable or directly useful
+- Include specific numbers, versions, prices when available
+- Use real examples, commands, or code snippets
+- Focus on practical value builders can apply TODAY
 
-Start with a DIRECT ANSWER: what happened? Then add key details (dates, features, numbers).
-Show why builders should care. Be specific with names, versions, prices.
+FORBIDDEN WORDS: delve, leverage, robust, comprehensive, facilitate, revolutionary, game-changing, cutting-edge
 
-AVOID: delve, leverage, robust, comprehensive, utilize, em dashes, formulaic openings.
-BE: Specific, direct, human.
-
-Write the article now (no title needed).`;
+Write the article now (include the ## headlines).`;
 
   try {
-    const { text } = await callGemini(prompt, systemPrompt, {
-      temperature: 0.7,
+    const { text } = await callGemini(prompt, SYSTEM_PROMPT, {
+      temperature: 0.6, // Lower for more focused, less fluffy content
       maxOutputTokens: 2048,
     });
 
-    // Clean up any markdown formatting if present
     let article = text.trim();
-    if (article.startsWith("#")) {
-      // Remove title line if LLM added one
-      article = article.split("\n").slice(1).join("\n").trim();
+
+    // Remove any title if LLM added one
+    if (article.startsWith("#") && !article.startsWith("## Why It Matters")) {
+      const lines = article.split("\n");
+      const firstHeadingIndex = lines.findIndex(line => line.startsWith("## Why It Matters"));
+      if (firstHeadingIndex > 0) {
+        article = lines.slice(firstHeadingIndex).join("\n").trim();
+      }
     }
 
     const wordCount = article.split(/\s+/).length;
-    console.log(`[Writer] Generated ${category} article for "${item.title}" (${wordCount} words)`);
+    console.log(`[Writer] Generated article for "${item.title}" (${wordCount} words)`);
     return article;
   } catch (error) {
     console.error(`[Writer] Error writing article for "${item.title}":`, error);

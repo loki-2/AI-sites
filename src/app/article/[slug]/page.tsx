@@ -162,13 +162,48 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         <Separator className="my-8" />
 
-        {/* Article Body - Improved Typography */}
+        {/* Article Body - Improved Typography with Markdown Support */}
         <div className="article-content">
-          {article.content.split("\n\n").map((paragraph, index) => (
-            <p key={index} className="mb-6 text-lg leading-relaxed text-foreground/90">
-              {paragraph}
-            </p>
-          ))}
+          {article.content.split("\n").map((line, index) => {
+            // Render H2 headings
+            if (line.startsWith("## ")) {
+              return (
+                <h2 key={index} className="text-2xl md:text-3xl font-bold text-foreground mt-8 mb-4">
+                  {line.replace("## ", "")}
+                </h2>
+              );
+            }
+
+            // Render bullet points
+            if (line.startsWith("- ")) {
+              return (
+                <li key={index} className="ml-6 mb-3 text-lg leading-relaxed text-foreground/90 list-disc">
+                  {line.replace("- ", "")}
+                </li>
+              );
+            }
+
+            // Render numbered lists
+            if (/^\d+\.\s/.test(line)) {
+              return (
+                <li key={index} className="ml-6 mb-3 text-lg leading-relaxed text-foreground/90 list-decimal">
+                  {line.replace(/^\d+\.\s/, "")}
+                </li>
+              );
+            }
+
+            // Render empty lines as spacing
+            if (line.trim() === "") {
+              return <div key={index} className="h-2" />;
+            }
+
+            // Render regular paragraphs
+            return (
+              <p key={index} className="mb-4 text-lg leading-relaxed text-foreground/90">
+                {line}
+              </p>
+            );
+          })}
         </div>
 
         {/* Source Link */}
