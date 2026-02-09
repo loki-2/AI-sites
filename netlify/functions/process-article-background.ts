@@ -72,7 +72,8 @@ async function updateNotionPage(pageId: string, articleContent: string): Promise
     },
     body: JSON.stringify({
       properties: {
-        "ArticleContent": { rich_text: [{ text: { content: articleContent.slice(0, 2000) } }] },
+        // Property name in Notion has a space: "Article Content"
+        "Article Content": { rich_text: [{ text: { content: articleContent.slice(0, 2000) } }] },
       },
     }),
   });
