@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { updateProcessedItem } from "@/lib/notion/operations";
-import { writeArticleWithFeedback } from "@/lib/agents/writer-with-feedback";
+import { writeArticle } from "@/lib/agents/writer";  // Now uses structured writer
 import { notion } from "@/lib/notion/client";
 
 // Verify internal secret
@@ -57,28 +57,22 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Process Single] Writing article for: ${item.title}`);
 
-    // Writer creates draft → Reviewer gives feedback → Writer rewrites once
-    const result = await writeArticleWithFeedback(item);
+    // Generate article with new structured writer (3-section format)
+    const articleContent = await writeArticle(item);
 
     console.log(`[Process Single] Article complete!`);
-    console.log(`[Process Single] Final title: ${result.title}`);
-    console.log(`[Process Single] Word count: ${result.content.split(/\s+/).length}`);
-    console.log(`[Process Single] Reviewer score: ${result.finalScore}/10`);
+    console.log(`[Process Single] Word count: ${articleContent.split(/\s+/).length}`);
 
     // Save article content to Notion (checkbox already updated above)
     await updateProcessedItem(notionPageId, {
-      title: result.title,
-      articleContent: result.originalContent,  // Original draft from writer
-      reviewedContent: result.content,          // Improved version after reviewer
+      articleContent: articleContent,
     });
 
     console.log(`[Process Single] Saved to Notion!`);
 
     return NextResponse.json({
       success: true,
-      title: result.title,
-      wordCount: result.content.split(/\s+/).length,
-      reviewerScore: result.finalScore,
+      wordCount: articleContent.split(/\s+/).length,
     });
   } catch (error) {
     console.error("[Process Single] Error:", error);

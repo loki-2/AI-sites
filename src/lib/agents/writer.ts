@@ -27,9 +27,9 @@ export async function writeArticle(
   item: ProcessedItem,
   category: ArticleCategory = "news"
 ): Promise<string> {
-  // Use the new structured writer for better quality and consistency
-  const { writeStructuredArticle } = await import("./structured-writer");
-  return writeStructuredArticle(item);
+  // Use the new workflow-based writer with reviewer feedback loop
+  const { runArticleWorkflow } = await import("./workflows/article-workflow");
+  return runArticleWorkflow(item);
 }
 
 // -------------------------------------------
