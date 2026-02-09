@@ -1,19 +1,68 @@
 // ===========================================
 // Background Function: Process Approved Article
 // ===========================================
-// NETLIFY BACKGROUND FUNCTION - Has 15-minute timeout
-// The "-background" suffix in the filename tells Netlify to run async
-// 
-// This directly calls the API route instead of importing code
-// to avoid bundling issues with Netlify Functions
+// NETLIFY BACKGROUND FUNCTION - 15 minute timeout
+// Self-contained: calls Gemini directly, no API route calls
+// Updates Slack via response_url when complete
 
 import type { Handler, HandlerEvent } from "@netlify/functions";
 
 // -------------------------------------------
-// API Helpers
+// Gemini API (inline to avoid import issues)
 // -------------------------------------------
 
-async function updateNotionPage(pageId: string, properties: Record<string, unknown>): Promise<void> {
+interface GeminiResponse {
+  text: string;
+  finishReason: string;
+}
+
+async function callGemini(prompt: string, systemPrompt: string): Promise<GeminiResponse> {
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) throw new Error("GOOGLE_API_KEY not set");
+
+  const contents = [
+    { role: "user", parts: [{ text: systemPrompt }] },
+    { role: "model", parts: [{ text: "Understood." }] },
+    { role: "user", parts: [{ text: prompt }] },
+  ];
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents,
+        generationConfig: { temperature: 0.5, maxOutputTokens: 4096 },
+      }),
+    }
+  );
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(`Gemini error: ${JSON.stringify(data)}`);
+
+  return {
+    text: data.candidates?.[0]?.content?.parts?.[0]?.text || "",
+    finishReason: data.candidates?.[0]?.finishReason || "UNKNOWN",
+  };
+}
+
+// -------------------------------------------
+// Notion API Helpers
+// -------------------------------------------
+
+async function getNotionPage(pageId: string): Promise<any> {
+  const response = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+    headers: {
+      "Authorization": `Bearer ${process.env.NOTION_API_KEY}`,
+      "Notion-Version": "2022-06-28",
+    },
+  });
+  if (!response.ok) throw new Error(`Notion get error: ${await response.text()}`);
+  return response.json();
+}
+
+async function updateNotionPage(pageId: string, articleContent: string): Promise<void> {
   const response = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
     method: "PATCH",
     headers: {
@@ -21,82 +70,96 @@ async function updateNotionPage(pageId: string, properties: Record<string, unkno
       "Content-Type": "application/json",
       "Notion-Version": "2022-06-28",
     },
-    body: JSON.stringify({ properties }),
+    body: JSON.stringify({
+      properties: {
+        "ArticleContent": { rich_text: [{ text: { content: articleContent.slice(0, 2000) } }] },
+      },
+    }),
   });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Notion API error: ${error}`);
-  }
+  if (!response.ok) throw new Error(`Notion update error: ${await response.text()}`);
 }
 
-async function getNotionPage(pageId: string): Promise<any> {
-  const response = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
-    headers: {
-      "Authorization": `Bearer ${process.env.NOTION_API_KEY}`,
-      "Content-Type": "application/json",
-      "Notion-Version": "2022-06-28",
-    },
-  });
+// -------------------------------------------
+// Article Generation (simplified writer)
+// -------------------------------------------
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Notion API error: ${error}`);
-  }
+const WRITER_SYSTEM_PROMPT = `You are a tech writer for VibeCoders - a publication for builders who use AI to ship fast.
 
-  return response.json();
+Write in a direct, no-BS style. Be specific with numbers, versions, and examples.
+
+STRICT RULES:
+- NO forbidden words: delve, leverage, robust, comprehensive, seamless, revolutionize, game-changing
+- NO marketing hype or fluff
+- Every sentence must be actionable or informative
+
+OUTPUT JSON with exactly:
+{
+  "whyItMatters": [5 one-sentence points about benefits],
+  "whenToUse": [10 specific use case sentences],
+  "howToUse": [10 actionable how-to sentences with commands/steps]
+}`;
+
+interface Article {
+  whyItMatters: string[];
+  whenToUse: string[];
+  howToUse: string[];
 }
 
-async function updateSlackMessage(
-  channelId: string,
-  messageTs: string,
+async function generateArticle(title: string, summary: string, url: string): Promise<string> {
+  const prompt = `Generate a structured article about this tool/news for builders:
+
+Title: ${title}
+URL: ${url}
+Summary: ${summary}
+
+Generate a JSON object with exactly:
+- "whyItMatters": array of 5 one-sentence benefit points
+- "whenToUse": array of 10 specific use case points
+- "howToUse": array of 10 actionable how-to points
+
+Focus on practical, specific, actionable information.`;
+
+  console.log(`[Background] Calling Gemini for article generation...`);
+  const { text } = await callGemini(prompt, WRITER_SYSTEM_PROMPT);
+
+  // Extract JSON from response
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON found in Gemini response");
+
+  const article: Article = JSON.parse(jsonMatch[0]);
+
+  // Format as markdown
+  const markdown = `## Why It Matters
+${article.whyItMatters.map(p => `- ${p}`).join("\n")}
+
+## When to Use
+${article.whenToUse.map((p, i) => `${i + 1}. ${p}`).join("\n")}
+
+## How to Use
+${article.howToUse.map((p, i) => `${i + 1}. ${p}`).join("\n")}`;
+
+  return markdown;
+}
+
+// -------------------------------------------
+// Slack Update Helper
+// -------------------------------------------
+
+async function updateSlack(
+  responseUrl: string,
   text: string,
   blocks: unknown[]
 ): Promise<void> {
-  const response = await fetch("https://slack.com/api/chat.update", {
+  await fetch(responseUrl, {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.SLACK_BOT_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ channel: channelId, ts: messageTs, text, blocks }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      response_type: "in_channel",
+      replace_original: true,
+      text,
+      blocks,
+    }),
   });
-
-  const result = await response.json();
-  if (!result.ok) {
-    console.error(`Slack API error:`, result.error);
-  }
-}
-
-// -------------------------------------------
-// Retry Wrapper
-// -------------------------------------------
-
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  context: string = "Operation"
-): Promise<T> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error as Error;
-
-      if (attempt === maxRetries) {
-        console.error(`[Background] ${context} failed after ${maxRetries + 1} attempts`);
-        throw lastError;
-      }
-
-      const delay = 1000 * Math.pow(2, attempt);
-      console.warn(`[Background] ${context} failed (attempt ${attempt + 1}), retrying in ${delay}ms...`);
-      await new Promise(r => setTimeout(r, delay));
-    }
-  }
-
-  throw lastError!;
 }
 
 // -------------------------------------------
@@ -105,109 +168,75 @@ async function withRetry<T>(
 
 const handler: Handler = async (event: HandlerEvent) => {
   const body = JSON.parse(event.body || "{}");
-  const { notionPageId, itemTitle, slack } = body;
+  const { notionPageId, itemTitle, responseUrl } = body;
 
   if (!notionPageId) {
-    console.error("[Background] No notionPageId provided");
     return { statusCode: 400, body: "Missing notionPageId" };
   }
 
-  console.log(`[Background] ===== Starting article processing =====`);
-  console.log(`[Background] Item: ${itemTitle || notionPageId}`);
-  console.log(`[Background] Page ID: ${notionPageId}`);
+  console.log(`[Background] ===== Starting =====`);
+  console.log(`[Background] Page: ${notionPageId}`);
+  console.log(`[Background] Title: ${itemTitle}`);
 
   const startTime = Date.now();
 
   try {
-    // Step 1: Update Slack to show processing
-    if (slack?.channelId && slack?.messageTs) {
-      await updateSlackMessage(
-        slack.channelId,
-        slack.messageTs,
-        `⏳ Processing: ${itemTitle}`,
-        [{
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `⏳ *${itemTitle}*\n_Article generation in progress..._`,
-          },
-        }]
-      );
-      console.log(`[Background] Step 1: Slack status updated`);
-    }
+    // Step 1: Get item from Notion
+    console.log(`[Background] Step 1: Fetching from Notion...`);
+    const page = await getNotionPage(notionPageId);
+    const props = page.properties;
 
-    // Step 2: Call the internal API to generate article with retry
+    const title = props.Title?.title?.[0]?.text?.content || itemTitle || "Unknown";
+    const summary = props.Summary?.rich_text?.[0]?.text?.content || "";
+    const url = props.OriginalURL?.url || "";
+
+    console.log(`[Background] Title: ${title}`);
+
+    // Step 2: Generate article
     console.log(`[Background] Step 2: Generating article...`);
+    const articleContent = await generateArticle(title, summary, url);
+    const wordCount = articleContent.split(/\s+/).length;
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.URL || "https://vibecoders-news.netlify.app";
+    console.log(`[Background] ✅ Generated: ${wordCount} words`);
 
-    const result = await withRetry(async () => {
-      const response = await fetch(`${appUrl}/api/internal/process-single`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.CRON_SECRET}`,
+    // Step 3: Save to Notion
+    console.log(`[Background] Step 3: Saving to Notion...`);
+    await updateNotionPage(notionPageId, articleContent);
+    console.log(`[Background] ✅ Saved to Notion`);
+
+    // Step 4: Update Slack
+    if (responseUrl) {
+      console.log(`[Background] Step 4: Updating Slack...`);
+      await updateSlack(responseUrl, `✅ Article ready: ${title}`, [{
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `✅ *${title}*\n_Article generated! (${wordCount} words)_`,
         },
-        body: JSON.stringify({ notionPageId }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API error (${response.status}): ${errorText}`);
-      }
-
-      return response.json();
-    }, 3, "Article generation");
+      }]);
+      console.log(`[Background] ✅ Slack updated`);
+    }
 
     const duration = Date.now() - startTime;
-    console.log(`[Background] ✅ Article generated in ${duration}ms`);
-    console.log(`[Background] Word count: ${result.wordCount}`);
-
-    // Step 3: Update Slack with success
-    if (slack?.channelId && slack?.messageTs) {
-      await updateSlackMessage(
-        slack.channelId,
-        slack.messageTs,
-        `✅ Article ready: ${itemTitle}`,
-        [{
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `✅ *${itemTitle}*\n_Article generated! (${result.wordCount} words)_`,
-          },
-        }]
-      );
-      console.log(`[Background] Step 3: Slack updated with success`);
-    }
-
-    console.log(`[Background] ===== Completed successfully =====`);
+    console.log(`[Background] ===== Done in ${duration}ms =====`);
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        success: true,
-        wordCount: result.wordCount,
-        duration: `${duration}ms`,
-      }),
+      body: JSON.stringify({ success: true, wordCount, duration }),
     };
   } catch (error) {
     const duration = Date.now() - startTime;
     console.error(`[Background] ❌ Error after ${duration}ms:`, error);
 
     // Update Slack with failure
-    if (slack?.channelId && slack?.messageTs) {
-      await updateSlackMessage(
-        slack.channelId,
-        slack.messageTs,
-        `❌ Failed: ${itemTitle}`,
-        [{
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `❌ *${itemTitle}*\n_Article generation failed: ${(error as Error).message}_`,
-          },
-        }]
-      );
+    if (responseUrl) {
+      await updateSlack(responseUrl, `❌ Failed: ${itemTitle}`, [{
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `❌ *${itemTitle}*\n_Failed: ${(error as Error).message}_`,
+        },
+      }]);
     }
 
     return {
