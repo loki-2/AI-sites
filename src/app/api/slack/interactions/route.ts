@@ -2,10 +2,11 @@
 // Slack Interactions API Route
 // ===========================================
 // Handles button clicks from Slack messages
-// On approval: updates Notion and triggers background function
+// On approval: updates Notion immediately, then triggers background function
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifySlackRequest } from "@/lib/slack/client";
+import { updateProcessedItem } from "@/lib/notion/operations";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
       console.error("[Slack] SLACK_SIGNING_SECRET not set");
       return NextResponse.json({ error: "Server config error" }, { status: 500 });
     }
-    
+
     if (!verifySlackRequest(signingSecret, rawBody, timestamp, signature)) {
       console.error("[Slack] Invalid signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     const payload = JSON.parse(payloadStr);
     console.log("[Slack Interactions] Payload type:", payload.type);
-    
+
     // Handle different interaction types
     if (payload.type === "block_actions") {
       const action = payload.actions[0];
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
       // Handle approve/reject actions
       if (actionId.startsWith("approve_") || actionId.startsWith("reject_")) {
         const approved = actionId.startsWith("approve_");
-        
+
         let valueData;
         let itemTitle = "Unknown";
         try {
@@ -72,21 +73,26 @@ export async function POST(request: NextRequest) {
           console.error("[Slack] Failed to parse action value:", action.value);
           return NextResponse.json({ ok: true }); // Still return OK to Slack
         }
-        
+
         const { itemId, notionPageId } = valueData;
         console.log(`[Slack] ${approved ? "Approved" : "Rejected"} item ${itemId}, notionPageId: ${notionPageId}`);
 
-        // IMPORTANT: Trigger background function BEFORE returning
-        // Background function will handle: Notion update + Article generation
-        // This is a quick HTTP call that just starts the background process
-        
         if (approved && notionPageId) {
-          // Trigger background - this is fast, just starts the process
-          triggerBackgroundProcessing(notionPageId, itemTitle, channelId, messageTs, itemId, userId)
+          // Step 1: Update Notion checkbox IMMEDIATELY (this is fast)
+          try {
+            await updateProcessedItem(notionPageId, { slackApproved: true });
+            console.log(`[Slack] ✅ Updated SlackApproved checkbox in Notion`);
+          } catch (notionError) {
+            console.error(`[Slack] ❌ Failed to update Notion:`, notionError);
+            // Continue anyway - article generation is more important
+          }
+
+          // Step 2: Trigger background function (fire-and-forget)
+          triggerBackgroundFunction(notionPageId, itemTitle, channelId, messageTs, itemId, userId)
             .catch(err => console.error(`[Slack] Background trigger error:`, err));
         }
 
-        // Return immediately to Slack
+        // Return immediately to Slack (within 3 seconds)
         return NextResponse.json({ ok: true });
       }
     }
@@ -99,10 +105,10 @@ export async function POST(request: NextRequest) {
 }
 
 // -------------------------------------------
-// Trigger Background Function
+// Trigger Netlify Background Function
 // -------------------------------------------
 
-async function triggerBackgroundProcessing(
+async function triggerBackgroundFunction(
   notionPageId: string,
   itemTitle: string,
   channelId: string,
@@ -110,33 +116,36 @@ async function triggerBackgroundProcessing(
   itemId: string,
   userId: string
 ) {
-  // Use Next.js API route instead of broken Netlify background function
-  // This works both locally and on Netlify
+  // Call the Netlify background function directly
+  // The "-background" suffix tells Netlify to run it async with 15-min timeout
   const baseUrl = process.env.URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const processUrl = `${baseUrl}/api/internal/process-single`;
-  const secret = process.env.CRON_SECRET;
-  
-  console.log(`[Slack] Triggering article processing: ${processUrl}`);
-  console.log(`[Slack] Processing article: "${itemTitle}" (${notionPageId})`);
-  
-  // Fire and forget - don't await to keep Slack response fast
-  fetch(processUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${secret}`,
-    },
-    body: JSON.stringify({ notionPageId }),
-  })
-    .then(async (response) => {
-      if (!response.ok) {
-        const text = await response.text();
-        console.error(`[Slack] Processing failed (${response.status}):`, text);
-      } else {
-        console.log(`[Slack] ✅ Article processing started for: "${itemTitle}"`);
-      }
-    })
-    .catch((err) => {
-      console.error(`[Slack] ❌ Processing trigger failed for "${itemTitle}":`, err.message);
+  const backgroundUrl = `${baseUrl}/.netlify/functions/process-article-background`;
+
+  console.log(`[Slack] Triggering background function: ${backgroundUrl}`);
+  console.log(`[Slack] Processing article: "${itemTitle}"`);
+
+  try {
+    // Fire and forget - don't await the full response
+    const response = await fetch(backgroundUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        notionPageId,
+        itemTitle,
+        slack: { channelId, messageTs, userId },
+      }),
     });
+
+    // For background functions, Netlify returns 202 immediately
+    if (response.status === 202 || response.ok) {
+      console.log(`[Slack] ✅ Background function triggered for: "${itemTitle}"`);
+    } else {
+      const text = await response.text();
+      console.error(`[Slack] ❌ Background trigger failed (${response.status}):`, text);
+    }
+  } catch (err) {
+    console.error(`[Slack] ❌ Failed to trigger background function:`, (err as Error).message);
+  }
 }

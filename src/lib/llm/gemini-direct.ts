@@ -1,4 +1,5 @@
-// Direct Gemini API client (bypasses LangChain issues)
+// Direct Gemini API client with retry logic
+// Handles transient failures and rate limits
 
 export interface GeminiConfig {
   temperature?: number;
@@ -9,6 +10,49 @@ export interface GeminiResponse {
   text: string;
   finishReason: string;
 }
+
+// -------------------------------------------
+// Retry Wrapper for API Calls
+// -------------------------------------------
+
+async function withApiRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  context: string = "API call"
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      const errorMessage = lastError.message.toLowerCase();
+
+      // Don't retry on auth errors or bad requests
+      if (errorMessage.includes("api key") || errorMessage.includes("unauthorized")) {
+        throw lastError;
+      }
+
+      if (attempt === maxRetries) {
+        console.error(`[Gemini] ${context} failed after ${maxRetries + 1} attempts`);
+        throw lastError;
+      }
+
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = 1000 * Math.pow(2, attempt);
+      console.warn(`[Gemini] ${context} failed (attempt ${attempt + 1}), retrying in ${delay}ms...`);
+
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+
+  throw lastError || new Error("Unreachable");
+}
+
+// -------------------------------------------
+// Main Gemini API Call
+// -------------------------------------------
 
 export async function callGemini(
   prompt: string,
@@ -24,7 +68,7 @@ export async function callGemini(
   const { temperature = 0.5, maxOutputTokens = 2048 } = config;
 
   // Build the contents array
-  const contents = [];
+  const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
 
   if (systemPrompt) {
     contents.push({
@@ -42,49 +86,97 @@ export async function callGemini(
     parts: [{ text: prompt }],
   });
 
-  // Add timeout to prevent Netlify function timeouts (25s, leaving 5s buffer)
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  // Retry wrapper for the actual API call
+  return withApiRetry(async () => {
+    // 25-second timeout for Netlify compatibility
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents,
-          generationConfig: {
-            temperature,
-            maxOutputTokens,
-          },
-        }),
-        signal: controller.signal,
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents,
+            generationConfig: {
+              temperature,
+              maxOutputTokens,
+            },
+          }),
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error (${response.status}): ${JSON.stringify(data)}`);
       }
-    );
 
-    clearTimeout(timeoutId);
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const finishReason = data.candidates?.[0]?.finishReason || "UNKNOWN";
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${JSON.stringify(data)}`);
+      return { text, finishReason };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if ((error as Error).name === "AbortError") {
+        throw new Error("Gemini API request timed out after 25 seconds");
+      }
+      throw error;
     }
-
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const finishReason = data.candidates?.[0]?.finishReason || "UNKNOWN";
-
-    return { text, finishReason };
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if ((error as Error).name === "AbortError") {
-      throw new Error("Gemini API request timed out after 25 seconds");
-    }
-    throw error;
-  }
+  }, 3, "Gemini generateContent");
 }
 
-// Helper to call Gemini and parse JSON response
+// -------------------------------------------
+// JSON Extraction Helper
+// -------------------------------------------
+
+function extractFirstJSON(str: string): string | null {
+  const start = str.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < str.length; i++) {
+    const char = str[i];
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escape = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === "{") depth++;
+      if (char === "}") depth--;
+
+      if (depth === 0) {
+        return str.substring(start, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
+// -------------------------------------------
+// JSON Mode API Call
+// -------------------------------------------
+
 export async function callGeminiJSON<T>(
   prompt: string,
   systemPrompt?: string,
@@ -105,45 +197,7 @@ export async function callGeminiJSON<T>(
     jsonStr = jsonStr.split("```")[1].split("```")[0].trim();
   }
 
-  // Find the first complete JSON object using bracket matching
-  function extractFirstJSON(str: string): string | null {
-    const start = str.indexOf("{");
-    if (start === -1) return null;
-
-    let depth = 0;
-    let inString = false;
-    let escape = false;
-
-    for (let i = start; i < str.length; i++) {
-      const char = str[i];
-
-      if (escape) {
-        escape = false;
-        continue;
-      }
-
-      if (char === "\\") {
-        escape = true;
-        continue;
-      }
-
-      if (char === '"') {
-        inString = !inString;
-        continue;
-      }
-
-      if (!inString) {
-        if (char === "{") depth++;
-        if (char === "}") depth--;
-
-        if (depth === 0) {
-          return str.substring(start, i + 1);
-        }
-      }
-    }
-    return null;
-  }
-
+  // Use bracket matching to extract first complete JSON object
   const extracted = extractFirstJSON(jsonStr);
   if (extracted) {
     jsonStr = extracted;
