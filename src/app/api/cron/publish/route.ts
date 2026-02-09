@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
           originalUrl: item.originalUrl,
           source: new URL(item.originalUrl).hostname,
           tags: item.tags,
+          category: item.category,
         });
 
         if (!result) {

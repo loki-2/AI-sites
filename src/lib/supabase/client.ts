@@ -42,6 +42,7 @@ export async function insertArticle(article: {
   originalUrl?: string;
   source?: string;
   tags?: string[];
+  category?: string;
 }): Promise<{ id: string } | null> {
   const { data, error } = await supabase.client
     .from("articles")
@@ -54,6 +55,7 @@ export async function insertArticle(article: {
       original_url: article.originalUrl,
       source: article.source,
       tags: article.tags,
+      category: article.category,
     })
     .select("id")
     .single();
