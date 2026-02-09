@@ -16,7 +16,7 @@ export async function callGemini(
   config: GeminiConfig = {}
 ): Promise<GeminiResponse> {
   const apiKey = process.env.GOOGLE_API_KEY;
-  
+
   if (!apiKey) {
     throw new Error("GOOGLE_API_KEY not set");
   }
@@ -25,7 +25,7 @@ export async function callGemini(
 
   // Build the contents array
   const contents = [];
-  
+
   if (systemPrompt) {
     contents.push({
       role: "user",
@@ -36,37 +36,52 @@ export async function callGemini(
       parts: [{ text: "Understood. I will follow these instructions." }],
     });
   }
-  
+
   contents.push({
     role: "user",
     parts: [{ text: prompt }],
   });
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents,
-        generationConfig: {
-          temperature,
-          maxOutputTokens,
-        },
-      }),
+  // Add timeout to prevent Netlify function timeouts (25s, leaving 5s buffer)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents,
+          generationConfig: {
+            temperature,
+            maxOutputTokens,
+          },
+        }),
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${JSON.stringify(data)}`);
     }
-  );
 
-  const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const finishReason = data.candidates?.[0]?.finishReason || "UNKNOWN";
 
-  if (!response.ok) {
-    throw new Error(`Gemini API error: ${JSON.stringify(data)}`);
+    return { text, finishReason };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if ((error as Error).name === "AbortError") {
+      throw new Error("Gemini API request timed out after 25 seconds");
+    }
+    throw error;
   }
-
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  const finishReason = data.candidates?.[0]?.finishReason || "UNKNOWN";
-
-  return { text, finishReason };
 }
 
 // Helper to call Gemini and parse JSON response
@@ -76,51 +91,85 @@ export async function callGeminiJSON<T>(
   config: GeminiConfig = {}
 ): Promise<T> {
   const { text, finishReason } = await callGemini(prompt, systemPrompt, config);
-  
+
   // Log raw response for debugging
   console.log(`[Gemini JSON] Response length: ${text.length}, finishReason: ${finishReason}`);
-  
+
   // Extract JSON from response
   let jsonStr = text.trim();
-  
+
   // Remove markdown code blocks if present
   if (jsonStr.includes("```json")) {
     jsonStr = jsonStr.split("```json")[1].split("```")[0].trim();
   } else if (jsonStr.includes("```")) {
     jsonStr = jsonStr.split("```")[1].split("```")[0].trim();
   }
-  
-  // Extract JSON object or array
-  const objectMatch = jsonStr.match(/\{[\s\S]*\}/);
-  const arrayMatch = jsonStr.match(/\[[\s\S]*\]/);
-  
-  if (objectMatch) {
-    jsonStr = objectMatch[0];
-  } else if (arrayMatch) {
-    jsonStr = arrayMatch[0];
+
+  // Find the first complete JSON object using bracket matching
+  function extractFirstJSON(str: string): string | null {
+    const start = str.indexOf("{");
+    if (start === -1) return null;
+
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+
+    for (let i = start; i < str.length; i++) {
+      const char = str[i];
+
+      if (escape) {
+        escape = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        escape = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (char === "{") depth++;
+        if (char === "}") depth--;
+
+        if (depth === 0) {
+          return str.substring(start, i + 1);
+        }
+      }
+    }
+    return null;
   }
-  
+
+  const extracted = extractFirstJSON(jsonStr);
+  if (extracted) {
+    jsonStr = extracted;
+  }
+
   try {
     return JSON.parse(jsonStr);
   } catch (parseError) {
     // Try to fix common JSON issues
     console.log(`[Gemini JSON] Parse failed, attempting fixes...`);
     console.log(`[Gemini JSON] Raw text (first 500 chars): ${text.substring(0, 500)}`);
-    
+
     try {
       // Fix 1: Remove trailing commas
-      let fixed = jsonStr.replace(/,(\s*[}\]])/g, '$1');
-      
+      let fixed = jsonStr.replace(/,(\s*[}\]])/g, "$1");
+
       // Fix 2: Fix unescaped newlines in strings
-      fixed = fixed.replace(/(?<!\\)\n/g, '\\n');
-      
+      fixed = fixed.replace(/(?<!\\)\n/g, "\\n");
+
       // Fix 3: Try to close incomplete JSON
       const openBraces = (fixed.match(/\{/g) || []).length;
       const closeBraces = (fixed.match(/\}/g) || []).length;
       if (openBraces > closeBraces) {
-        fixed += '}'.repeat(openBraces - closeBraces);
+        fixed += "}".repeat(openBraces - closeBraces);
       }
-      
+
       return JSON.parse(fixed);
     } catch (fixError) {
       console.error(`[Gemini JSON] Could not fix JSON:`, (fixError as Error).message);
