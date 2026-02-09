@@ -30,6 +30,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Process Single] Processing: ${notionPageId}`);
 
+    // ✅ UPDATE NOTION CHECKBOX IMMEDIATELY for instant feedback
+    // This happens BEFORE article generation so user sees the checkmark right away
+    await updateProcessedItem(notionPageId, {
+      slackApproved: true,
+    });
+    console.log(`[Process Single] ✅ Updated SlackApproved checkbox in Notion`);
+
     // Fetch the item from Notion
     const page = await notion.pages.retrieve({ page_id: notionPageId }) as any;
     const props = page.properties;
@@ -58,7 +65,7 @@ export async function POST(request: NextRequest) {
     console.log(`[Process Single] Word count: ${result.content.split(/\s+/).length}`);
     console.log(`[Process Single] Reviewer score: ${result.finalScore}/10`);
 
-    // Save to Notion - separate original draft and reviewed version
+    // Save article content to Notion (checkbox already updated above)
     await updateProcessedItem(notionPageId, {
       title: result.title,
       articleContent: result.originalContent,  // Original draft from writer
