@@ -192,3 +192,44 @@ export const DEFAULT_CRAWLER_CONFIGS: CrawlerConfig[] = [
   { source: "anthropic_blog", enabled: true, maxItems: 20 },
   { source: "indie_hackers", enabled: true, maxItems: 30 },
 ];
+
+// -------------------------------------------
+// Vibecoders Profiles & Projects
+// -------------------------------------------
+
+export interface VibecoderBadge {
+  name: string;
+  level: "moderate" | "expert" | "beginner" | string;
+}
+
+export interface VibecoderProfile {
+  id: string; // UUID from auth.users
+  name: string;
+  bio?: string;
+  avatar_url?: string;
+  social_url?: string;
+  location?: string;
+  build_tags?: string[];
+  github_username?: string;
+  badges: VibecoderBadge[];
+  total_projects: number;
+  shipped_projects: number;
+  in_progress_projects: number;
+  experiment_projects: number;
+  created_at: string;
+  updated_at: string;
+  // Extended UI property, conditionally loaded
+  projects?: VibecoderProject[];
+}
+
+export interface VibecoderProject {
+  id: string;
+  profile_id: string;
+  name: string;
+  description: string;
+  tags: string[]; // e.g., 'shipped', 'in progress', 'experiment'
+  images: string[];
+  live_link?: string;
+  created_at: string;
+  updated_at: string;
+}

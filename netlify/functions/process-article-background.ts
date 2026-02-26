@@ -134,10 +134,10 @@ Focus on practical, specific, actionable information.`;
 ${article.whyItMatters.map(p => `- ${p}`).join("\n")}
 
 ## When to Use
-${article.whenToUse.map((p, i) => `${i + 1}. ${p}`).join("\n")}
+${article.whenToUse.map(p => `- ${p}`).join("\n")}
 
 ## How to Use
-${article.howToUse.map((p, i) => `${i + 1}. ${p}`).join("\n")}`;
+${article.howToUse.map(p => `- ${p}`).join("\n")}`;
 
   return markdown;
 }

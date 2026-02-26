@@ -52,11 +52,11 @@ export function formatAsMarkdown(article: StructuredArticle): string {
 
     // When to Use section
     sections.push('\n\n## When to Use\n');
-    sections.push(article.whenToUse.map((point, i) => `${i + 1}. ${point}`).join('\n'));
+    sections.push(article.whenToUse.map(point => `- ${point}`).join('\n'));
 
     // How to Use section
     sections.push('\n\n## How to Use\n');
-    sections.push(article.howToUse.map((point, i) => `${i + 1}. ${point}`).join('\n'));
+    sections.push(article.howToUse.map(point => `- ${point}`).join('\n'));
 
     return sections.join('');
 }

@@ -1,102 +1,58 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
-import { ArticleCard } from "@/components/ArticleCard";
-import { ArticleSkeleton } from "@/components/ArticleSkeleton";
-import { Button } from "@/components/ui/button";
-import type { PublishedArticle } from "@/types";
+import React, { useState } from "react";
+import { cn } from "@/lib/utils";
+import { HireTab } from "@/components/HireTab";
+import { GetHiredTab } from "@/components/GetHiredTab";
+import { LearningTab } from "@/components/LearningTab";
+import Link from "next/link";
 
-type Category = 'all' | 'news' | 'actionable';
-
-function ArticlesFeedSkeleton() {
-  return (
-    <div className="space-y-6">
-      {[...Array(5)].map((_, i) => (
-        <ArticleSkeleton key={i} />
-      ))}
-    </div>
-  );
-}
+type TabId = 'hire' | 'get-hired' | 'learning';
 
 export default function HomePage() {
-  const [activeCategory, setActiveCategory] = useState<Category>('all');
-  const [articles, setArticles] = useState<PublishedArticle[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabId>('hire');
 
-  // Fetch articles on mount
-  useEffect(() => {
-    async function fetchArticles() {
-      try {
-        const response = await fetch('/api/articles');
-        const data = await response.json();
-        setArticles(data);
-      } catch (error) {
-        console.error('Failed to fetch articles:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchArticles();
-  }, []);
+  const tabs: { id: TabId; label: string }[] = [
+    { id: 'hire', label: 'Get Hired' },
+    { id: 'get-hired', label: 'Hire' },
+    // { id: 'learning', label: 'Learning' },
+  ];
 
-  // Filter articles based on category
-  const filteredArticles = activeCategory === 'all'
-    ? articles
-    : articles.filter(article => article.category === activeCategory);
+  const tabNavigation = (
+    <div className="w-full flex justify-center">
+      <div className="inline-flex bg-[#161616] p-1.5 rounded-full items-center shrink-0 border border-border/50 shadow-sm overflow-x-auto w-full max-w-fit justify-start md:justify-center backdrop-blur-sm">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "px-6 md:px-8 py-2 md:py-2.5 text-sm md:text-base font-semibold rounded-full transition-all duration-300 whitespace-nowrap",
+              activeTab === tab.id
+                ? "bg-background text-foreground shadow-md ring-1 ring-border/50"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+        <Link
+          href="/profile"
+          className="px-6 md:px-8 py-2 md:py-2.5 text-sm md:text-base font-semibold rounded-full transition-all duration-300 whitespace-nowrap text-muted-foreground hover:text-foreground hover:bg-muted/40"
+        >
+          My Portfolio
+        </Link>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Latest News Section */}
-      <section className="mb-8">
-        <div className="mb-8">
-          <h1 className="text-5xl md:text-6xl font-extrabold text-primary tracking-tighter mb-6">
-            Techcrunch for Vibecoders
-          </h1>
-
-          {/* Category Filter Buttons */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant={activeCategory === 'all' ? 'default' : 'outline'}
-              onClick={() => setActiveCategory('all')}
-              className="font-semibold"
-            >
-              All
-            </Button>
-            <Button
-              variant={activeCategory === 'news' ? 'default' : 'outline'}
-              onClick={() => setActiveCategory('news')}
-              className="font-semibold"
-            >
-              News
-            </Button>
-            <Button
-              variant={activeCategory === 'actionable' ? 'default' : 'outline'}
-              onClick={() => setActiveCategory('actionable')}
-              className="font-semibold"
-            >
-              Learning
-            </Button>
-          </div>
-        </div>
-
-        {/* Articles Feed */}
-        {loading ? (
-          <ArticlesFeedSkeleton />
-        ) : filteredArticles.length === 0 ? (
-          <div className="text-center py-16">
-            <h2 className="text-xl font-semibold mb-2">No articles yet</h2>
-            <p className="text-muted-foreground">
-              Check back soon for the latest vibe coder news.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {filteredArticles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
-            ))}
-          </div>
-        )}
-      </section>
+    <div className="w-full flex flex-col items-center">
+      {/* Tab Content takes full width and renders its own max-w contexts */}
+      <div className="w-full flex justify-center">
+        {activeTab === 'hire' && <HireTab tabs={tabNavigation} />}
+        {activeTab === 'get-hired' && <GetHiredTab tabs={tabNavigation} />}
+        {activeTab === 'learning' && <LearningTab />}
+      </div>
     </div>
   );
 }

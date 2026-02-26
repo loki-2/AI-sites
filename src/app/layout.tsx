@@ -3,6 +3,9 @@ import { Manrope } from "next/font/google";
 import "./globals.css";
 import { SchemaMarkup } from "@/components/SchemaMarkup";
 import { generateOrganizationSchema } from "@/lib/seo/schemas";
+import { AuthButton } from "@/components/AuthButton";
+import { CreateProfileButton } from "@/components/CreateProfileButton";
+import Link from "next/link";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -77,7 +80,7 @@ export default function RootLayout({
   });
 
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head>
         <SchemaMarkup schema={organizationSchema} />
       </head>
@@ -86,19 +89,25 @@ export default function RootLayout({
       >
         <div className="min-h-screen flex flex-col">
           {/* Header */}
-          <header className="border-b border-border bg-foreground text-background sticky top-0 z-50">
+          <header className="border-b border-border bg-background/80 backdrop-blur-md text-foreground sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4 py-3">
               <div className="flex items-center justify-between">
-                <a href="/" className="flex items-center gap-2">
+                <Link href="/" className="flex items-center gap-2">
                   <span className="text-xl font-bold tracking-tight">
                     VibeCoders
                   </span>
-                </a>
+                </Link>
                 <nav className="hidden md:flex items-center gap-6 text-sm">
-                  <a href="/" className="hover:text-primary transition-colors">Latest</a>
-                  <a href="/" className="hover:text-primary transition-colors">News</a>
-                  <a href="/" className="hover:text-primary transition-colors">Learning</a>
+                  {/* <Link href="/" className="hover:text-primary transition-colors">Latest</Link>
+                  <Link href="/" className="hover:text-primary transition-colors">News</Link>
+                  <Link href="/" className="hover:text-primary transition-colors">Learning</Link> */}
                 </nav>
+                <div className="flex items-center gap-3">
+                  <CreateProfileButton variant="outline" size="sm" className="hidden md:flex" hideWhenComplete>
+                    Build Portfolio
+                  </CreateProfileButton>
+                  <AuthButton />
+                </div>
               </div>
             </div>
           </header>

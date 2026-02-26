@@ -177,7 +177,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             // Render bullet points
             if (line.startsWith("- ")) {
               return (
-                <li key={index} className="ml-6 mb-3 text-lg leading-relaxed text-foreground/90 list-disc">
+                <li key={index} className="ml-6 mb-3 text-lg font-medium leading-relaxed text-foreground/90 list-disc">
                   {line.replace("- ", "")}
                 </li>
               );
@@ -186,7 +186,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             // Render numbered lists
             if (/^\d+\.\s/.test(line)) {
               return (
-                <li key={index} className="ml-6 mb-3 text-lg leading-relaxed text-foreground/90 list-decimal">
+                <li key={index} className="ml-6 mb-3 text-lg font-medium leading-relaxed text-foreground/90 list-decimal">
                   {line.replace(/^\d+\.\s/, "")}
                 </li>
               );
@@ -199,7 +199,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
             // Render regular paragraphs
             return (
-              <p key={index} className="mb-4 text-lg leading-relaxed text-foreground/90">
+              <p key={index} className="mb-4 text-lg font-medium leading-relaxed text-foreground/90">
                 {line}
               </p>
             );

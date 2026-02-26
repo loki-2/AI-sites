@@ -37,8 +37,8 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
@@ -47,7 +47,7 @@
 }
 
 :root {
-  --radius: 0;
+  --radius: 0.5rem;
   /* Sharp edges as requested */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -84,14 +84,14 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  --background: oklch(18.67% 0.000 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
   /* Green primary for dark mode */
-  --primary: oklch(0.6 0.18 155);
+  --primary: oklch(93.14% 0.228 122.86);
   --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -102,20 +102,20 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.6 0.18 155);
-  --chart-1: oklch(0.6 0.18 155);
-  --chart-2: oklch(0.65 0.15 180);
-  --chart-3: oklch(0.7 0.12 140);
-  --chart-4: oklch(0.68 0.14 160);
+  --ring: oklch(93.14% 0.228 122.86);
+  --chart-1: oklch(60.14% 0.228 122.86);
+  --chart-2: oklch(56.14% 0.228 122.86);
+  --chart-3: oklch(70.14% 0.228 122.86);
+  --chart-4: oklch(68.14% 0.228 122.86);
   --chart-5: oklch(0.63 0.16 150);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.6 0.18 155);
+  --sidebar-primary: oklch(93.14% 0.228 122.86);
   --sidebar-primary-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.6 0.18 155);
+  --sidebar-ring: oklch(93.14% 0.228 122.86);
 }
 
 @layer base {
