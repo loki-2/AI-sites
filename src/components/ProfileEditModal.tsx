@@ -21,7 +21,7 @@ const AVAILABLE_BADGES = [
 const SKILL_LEVELS = ["beginner", "moderate", "expert"];
 
 const BUILD_TAGS_OPTIONS = [
-    "Web apps", "Mobile apps"
+    "Web apps", "Mobile apps", "MVP Builder", "SaaS Builder", "AI Apps", "Automation Engineer", "Websites"
 ];
 
 export function ProfileEditModal({
@@ -38,6 +38,7 @@ export function ProfileEditModal({
     const [bio, setBio] = useState(profile.bio || "");
     const [badges, setBadges] = useState<VibecoderBadge[]>(profile.badges || []);
     const [socialUrl, setSocialUrl] = useState(profile.social_url || "");
+    const [availability, setAvailability] = useState(profile.availability || "");
     const [buildTags, setBuildTags] = useState<string[]>(profile.build_tags || []);
     const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url || "");
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -89,7 +90,7 @@ export function ProfileEditModal({
 
         const { error } = await supabase
             .from('vibecoder_profiles')
-            .update({ name, bio, badges, social_url: socialUrl, avatar_url: finalAvatarUrl, build_tags: buildTags })
+            .update({ name, bio, badges, social_url: socialUrl, availability, avatar_url: finalAvatarUrl, build_tags: buildTags })
             .eq('id', profile.id);
 
         if (!error) {
@@ -104,7 +105,7 @@ export function ProfileEditModal({
 
         setSaving(false);
         if (!error) {
-            onSave({ ...profile, name, bio, badges, social_url: socialUrl, avatar_url: finalAvatarUrl, build_tags: buildTags });
+            onSave({ ...profile, name, bio, badges, social_url: socialUrl, availability, avatar_url: finalAvatarUrl, build_tags: buildTags });
         } else {
             console.error("Failed to save profile", error);
         }
@@ -152,6 +153,29 @@ export function ProfileEditModal({
                             onChange={e => setSocialUrl(e.target.value)}
                             placeholder="https://x.com/yourhandle"
                         />
+                    </div>
+
+                    <div className="space-y-3">
+                        <Label>Availability</Label>
+                        <div className="flex flex-col gap-2">
+                            {[
+                                { label: "Available for gigs", dot: "bg-green-500" },
+                                { label: "Not looking for gigs", dot: "bg-blue-500" },
+                                { label: "Loaded up with projects", dot: "bg-orange-500" }
+                            ].map((opt) => (
+                                <button
+                                    key={opt.label}
+                                    onClick={() => setAvailability(opt.label)}
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium transition-all text-left ${availability === opt.label
+                                        ? 'bg-primary/10 border-primary shadow-sm'
+                                        : 'bg-background hover:bg-muted/50 border-border text-foreground'
+                                        }`}
+                                >
+                                    <span className={`w-2.5 h-2.5 rounded-full ${opt.dot} shadow-sm`} />
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     <div className="space-y-3">

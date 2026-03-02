@@ -211,6 +211,7 @@ export interface VibecoderProfile {
   location?: string;
   build_tags?: string[];
   github_username?: string;
+  availability?: string;
   badges: VibecoderBadge[];
   total_projects: number;
   shipped_projects: number;
@@ -227,7 +228,7 @@ export interface VibecoderProject {
   profile_id: string;
   name: string;
   description: string;
-  tags: string[]; // e.g., 'shipped', 'in progress', 'experiment'
+  tags: string[]; // e.g., 'shipped', 'half baked', 'experiment'
   images: string[];
   live_link?: string;
   created_at: string;

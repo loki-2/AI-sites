@@ -5,18 +5,33 @@ import { cn } from "@/lib/utils";
 import { HireTab } from "@/components/HireTab";
 import { GetHiredTab } from "@/components/GetHiredTab";
 import { LearningTab } from "@/components/LearningTab";
-import Link from "next/link";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useRouter } from "next/navigation";
 
 type TabId = 'hire' | 'get-hired' | 'learning';
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabId>('hire');
+  const router = useRouter();
+  const supabase = createSupabaseBrowserClient();
 
   const tabs: { id: TabId; label: string }[] = [
     { id: 'hire', label: 'Get Hired' },
     { id: 'get-hired', label: 'Hire' },
     // { id: 'learning', label: 'Learning' },
   ];
+
+  const handlePortfolioClick = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      router.push('/profile');
+    } else {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback?next=/profile` }
+      });
+    }
+  };
 
   const tabNavigation = (
     <div className="w-full flex justify-center">
@@ -35,12 +50,12 @@ export default function HomePage() {
             {tab.label}
           </button>
         ))}
-        <Link
-          href="/profile"
+        <button
+          onClick={handlePortfolioClick}
           className="px-6 md:px-8 py-2 md:py-2.5 text-sm md:text-base font-semibold rounded-full transition-all duration-300 whitespace-nowrap text-muted-foreground hover:text-foreground hover:bg-muted/40"
         >
           My Portfolio
-        </Link>
+        </button>
       </div>
     </div>
   );

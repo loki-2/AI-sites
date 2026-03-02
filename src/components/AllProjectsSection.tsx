@@ -45,17 +45,23 @@ export function AllProjectsSection() {
                     author: Array.isArray(p.author) ? p.author[0] : p.author
                 })) as ProjectWithAuthor[];
 
-                // Sort by specified tag hierarchy: Shipped -> Experiment -> In Progress
+                // Sort by specified tag hierarchy: Shipped -> Experiment -> Half baked
                 const sortOrder: Record<string, number> = {
                     "shipped": 1,
                     "experiment": 2,
-                    "in progress": 3
+                    "half baked": 3
                 };
 
                 formattedProjects.sort((a, b) => {
                     // Find the most 'prestigious' tag for a project to sort by
-                    const aHighTag = Math.min(...a.tags.map(t => sortOrder[t.toLowerCase()] || 99));
-                    const bHighTag = Math.min(...b.tags.map(t => sortOrder[t.toLowerCase()] || 99));
+                    const aHighTag = Math.min(...a.tags.map(t => {
+                        const lookup = t.toLowerCase() === 'in progress' ? 'half baked' : t.toLowerCase();
+                        return sortOrder[lookup] || 99;
+                    }));
+                    const bHighTag = Math.min(...b.tags.map(t => {
+                        const lookup = t.toLowerCase() === 'in progress' ? 'half baked' : t.toLowerCase();
+                        return sortOrder[lookup] || 99;
+                    }));
 
                     if (aHighTag !== bHighTag) {
                         return aHighTag - bHighTag;

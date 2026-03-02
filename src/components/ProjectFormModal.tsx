@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { VibecoderProject } from "@/types";
 
-const TAG_OPTIONS = ["shipped", "in progress", "experiment"];
+const TAG_OPTIONS = ["shipped", "half baked", "experiment"];
 
 export function ProjectFormModal({
     profileId,
@@ -23,7 +23,7 @@ export function ProjectFormModal({
 }) {
     const [name, setName] = useState(existingProject?.name || "");
     const [description, setDescription] = useState(existingProject?.description || "");
-    const [selectedTags, setSelectedTags] = useState<string[]>(existingProject?.tags || []);
+    const [selectedTags, setSelectedTags] = useState<string[]>(existingProject?.tags?.map(t => t.toLowerCase() === 'in progress' ? 'half baked' : t) || []);
     const [liveLink, setLiveLink] = useState(existingProject?.live_link || "");
     const [files, setFiles] = useState<File[]>([]);
     const [existingImages, setExistingImages] = useState<string[]>(existingProject?.images || []);
@@ -70,8 +70,8 @@ export function ProjectFormModal({
             return;
         }
         const totalImagesCount = files.length + existingImages.length;
-        if (totalImagesCount < 3 || totalImagesCount > 5) {
-            setError("Please upload between 3 to 5 images total.");
+        if (totalImagesCount < 1 || totalImagesCount > 5) {
+            setError("Please upload between 1 to 5 images total.");
             return;
         }
         if (selectedTags.length === 0) {
@@ -104,17 +104,18 @@ export function ProjectFormModal({
                 imageUrls.push(publicUrl);
             }
 
-            // 2. Create or Update Project Record
-            const projectData = {
-                profile_id: profileId,
-                name,
-                description,
-                tags: selectedTags,
-                live_link: liveLink || null,
-                images: [...existingImages, ...imageUrls]
-            };
+            // Convert 'half baked' back to 'in progress' for the database
+            const dbTags = selectedTags.map(t => t.toLowerCase() === 'half baked' ? 'in progress' : t);
 
             if (existingProject) {
+                const projectData = {
+                    name,
+                    description,
+                    tags: dbTags,
+                    live_link: liveLink || null,
+                    images: [...existingImages, ...imageUrls]
+                };
+
                 const { data: updatedProject, error: dbError } = await supabase
                     .from('vibecoder_projects')
                     .update(projectData)
@@ -125,6 +126,15 @@ export function ProjectFormModal({
                 if (dbError) throw dbError;
                 onSave(updatedProject as VibecoderProject);
             } else {
+                const projectData = {
+                    profile_id: profileId,
+                    name,
+                    description,
+                    tags: dbTags,
+                    live_link: liveLink || null,
+                    images: [...existingImages, ...imageUrls]
+                };
+
                 const { data: insertedProject, error: dbError } = await supabase
                     .from('vibecoder_projects')
                     .insert([projectData])
@@ -207,7 +217,7 @@ export function ProjectFormModal({
                     </div>
 
                     <div>
-                        <Label className="block mb-2 text-sm font-semibold">Images (3 to 5 required)</Label>
+                        <Label className="block mb-2 text-sm font-semibold">Images (1 to 5 required)</Label>
                         <p className="text-xs text-muted-foreground mb-3">Upload screenshots or mockups showcasing your project.</p>
 
                         <div className="flex gap-4 flex-wrap mb-4">
@@ -249,19 +259,53 @@ export function ProjectFormModal({
                         </div>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                        <Button variant="outline" type="button" onClick={onClose} disabled={uploading}>Cancel</Button>
-                        <Button type="submit" disabled={uploading} className="shadow-md min-w-[120px]">
-                            {uploading ? (
-                                <span className="flex items-center gap-2">
-                                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Saving...
-                                </span>
-                            ) : existingProject ? "Update Project" : "Save Project"}
-                        </Button>
+                    <div className="flex justify-between items-center pt-4 border-t border-border">
+                        <div>
+                            {existingProject && (
+                                <Button
+                                    variant="ghost"
+                                    type="button"
+                                    onClick={async () => {
+                                        if (confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
+                                            setUploading(true);
+                                            const { error } = await supabase
+                                                .from('vibecoder_projects')
+                                                .delete()
+                                                .eq('id', existingProject.id);
+                                            if (error) {
+                                                console.error(error);
+                                                setError(error.message);
+                                                setUploading(false);
+                                            } else {
+                                                onClose(); // Close modal
+                                                // We don't have an onDelete prop, but if we call onSave with a deleted flag we could handle it.
+                                                // Let's reload page for simplicity or pass a dummy object.
+                                                window.location.reload();
+                                            }
+                                        }
+                                    }}
+                                    disabled={uploading}
+                                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    Delete
+                                </Button>
+                            )}
+                        </div>
+                        <div className="flex gap-3">
+                            <Button variant="outline" type="button" onClick={onClose} disabled={uploading}>Cancel</Button>
+                            <Button type="submit" disabled={uploading} className="shadow-md min-w-[120px]">
+                                {uploading ? (
+                                    <span className="flex items-center gap-2">
+                                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Saving...
+                                    </span>
+                                ) : existingProject ? "Update Project" : "Save Project"}
+                            </Button>
+                        </div>
                     </div>
 
                 </form>

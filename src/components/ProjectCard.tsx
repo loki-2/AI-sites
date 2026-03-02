@@ -3,8 +3,9 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { VibecoderProject } from "@/types";
-import { Edit2 } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 
 export function ProjectCard({ project, onEdit }: { project: VibecoderProject, onEdit?: (project: VibecoderProject) => void }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -15,13 +16,13 @@ export function ProjectCard({ project, onEdit }: { project: VibecoderProject, on
     const getCoverTagColor = (tag: string) => {
         switch (tag.toLowerCase()) {
             case "shipped":
-                return "bg-green-500/90 text-white border-green-400/50";
-            case "in progress":
-                return "bg-orange-500/90 text-white border-orange-400/50";
+                return "bg-[#000000]/20 text-[#00FF00] dark:text-[#00FF00] border-green-500/30 backdrop-blur-md";
+            case "half baked":
+                return "bg-orange-500/20 text-orange-700 dark:text-orange-400 border-orange-500/30 backdrop-blur-md";
             case "experiment":
-                return "bg-blue-500/90 text-white border-blue-400/50";
+                return "bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/30 backdrop-blur-md";
             default:
-                return "bg-background/90 text-foreground border-border/40";
+                return "bg-background/50 text-foreground border-border/40 backdrop-blur-md";
         }
     };
 
@@ -29,9 +30,9 @@ export function ProjectCard({ project, onEdit }: { project: VibecoderProject, on
         <>
             <Card
                 onClick={() => setIsModalOpen(true)}
-                className="group relative cursor-pointer overflow-hidden rounded-lg border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                className="group relative cursor-pointer overflow-hidden rounded-lg border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 "
             >
-                <div className="aspect-[4/3] w-full bg-muted/30 overflow-hidden relative">
+                <div className="aspect-video w-full bg-muted/30 overflow-hidden relative">
                     {coverImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -46,17 +47,20 @@ export function ProjectCard({ project, onEdit }: { project: VibecoderProject, on
                     )}
                     {/* Tags */}
                     <div className="absolute bottom-3 left-3 flex gap-2 flex-wrap">
-                        {project.tags.map(tag => (
-                            <span key={tag} className={`px-2.5 py-1 text-xs font-semibold rounded-md backdrop-blur-md shadow-sm border ${getCoverTagColor(tag)}`}>
-                                {tag}
-                            </span>
-                        ))}
+                        {project.tags.map(tag => {
+                            const displayTag = tag.toLowerCase() === 'in progress' ? 'half baked' : tag;
+                            return (
+                                <span key={tag} className={`px-2.5 py-1 text-xs font-semibold rounded-md backdrop-blur-[40px] shadow-sm border ${getCoverTagColor(displayTag)} capitalize`}>
+                                    {displayTag}
+                                </span>
+                            );
+                        })}
                     </div>
                 </div>
 
                 <CardContent className="p-5 text-left">
-                    <h3 className="font-bold text-lg mb-1 line-clamp-2 leading-tight group-hover:text-primary transition-colors text-left">{project.name}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2 text-left">{project.description}</p>
+                    <h3 className="font-bold text-lg mb-1 line-clamp-2 leading-tight group-hover:text-primary transition-colors text-left mb-2">{project.name}</h3>
+                    <p className="text-sm text-muted-foreground line-clamp-2 text-left tracking-relaxed">{project.description}</p>
                 </CardContent>
             </Card>
 
@@ -69,6 +73,22 @@ export function ProjectCard({ project, onEdit }: { project: VibecoderProject, on
 
 function ProjectDetailsModal({ project, onClose, onEdit }: { project: VibecoderProject; onClose: () => void; onEdit?: (project: VibecoderProject) => void }) {
     const [currentImageIdx, setCurrentImageIdx] = useState(0);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const supabase = createSupabaseBrowserClient();
+
+    const handleDelete = async () => {
+        if (!confirm("Are you sure you want to delete this project? This action cannot be undone.")) return;
+        setIsDeleting(true);
+        const { error } = await supabase.from('vibecoder_projects').delete().eq('id', project.id);
+        if (error) {
+            console.error(error);
+            alert("Failed to delete project.");
+            setIsDeleting(false);
+        } else {
+            onClose();
+            window.location.reload();
+        }
+    };
 
     return (
         <Dialog open={true} onOpenChange={(open) => {
@@ -133,11 +153,12 @@ function ProjectDetailsModal({ project, onClose, onEdit }: { project: VibecoderP
                                 <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight mb-4 leading-tight">{project.name}</h2>
                                 <div className="flex gap-2 flex-wrap mb-4">
                                     {project.tags.map(tag => {
+                                        const displayTag = tag.toLowerCase() === 'in progress' ? 'half baked' : tag;
                                         const getTagColor = (t: string) => {
                                             switch (t.toLowerCase()) {
                                                 case "shipped":
                                                     return "bg-green-100/80 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800";
-                                                case "in progress":
+                                                case "half baked":
                                                     return "bg-orange-100/80 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800";
                                                 case "experiment":
                                                     return "bg-blue-100/80 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800";
@@ -146,8 +167,8 @@ function ProjectDetailsModal({ project, onClose, onEdit }: { project: VibecoderP
                                             }
                                         };
                                         return (
-                                            <span key={tag} className={`px-3 py-1 text-sm font-semibold rounded-md border ${getTagColor(tag)}`}>
-                                                {tag}
+                                            <span key={tag} className={`px-3 py-1 text-sm font-semibold rounded-md border ${getTagColor(displayTag)} capitalize`}>
+                                                {displayTag}
                                             </span>
                                         );
                                     })}
@@ -163,16 +184,30 @@ function ProjectDetailsModal({ project, onClose, onEdit }: { project: VibecoderP
 
                             <div className="flex items-center gap-3 pt-6 border-t border-border/40">
                                 {onEdit && (
-                                    <button
-                                        onClick={() => {
-                                            onClose();
-                                            onEdit(project);
-                                        }}
-                                        className="inline-flex items-center gap-2 px-6 py-2.5 bg-muted text-foreground font-semibold rounded-full hover:bg-muted/80 transition-colors"
-                                    >
-                                        <Edit2 className="w-4 h-4" />
-                                        Edit
-                                    </button>
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                onClose();
+                                                onEdit(project);
+                                            }}
+                                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-muted text-foreground font-semibold rounded-full hover:bg-muted/80 transition-colors"
+                                        >
+                                            <Edit2 className="w-4 h-4" />
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={handleDelete}
+                                            disabled={isDeleting}
+                                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-destructive/10 text-destructive font-semibold rounded-full hover:bg-destructive/20 transition-colors ml-auto"
+                                        >
+                                            {isDeleting ? "Deleting..." : (
+                                                <>
+                                                    <Trash2 className="w-4 h-4" />
+                                                    Delete
+                                                </>
+                                            )}
+                                        </button>
+                                    </>
                                 )}
                                 {project.live_link && (
                                     <a

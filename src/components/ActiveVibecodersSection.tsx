@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export function ActiveVibecodersSection() {
     const [profiles, setProfiles] = useState<VibecoderProfile[]>([]);
     const [loading, setLoading] = useState(true);
+    const [currentUserTotalProjects, setCurrentUserTotalProjects] = useState<number | null>(null);
     const supabase = createSupabaseBrowserClient();
     const router = useRouter();
 
@@ -23,7 +24,7 @@ export function ActiveVibecodersSection() {
             await supabase.auth.signInWithOAuth({
                 provider: "google",
                 options: {
-                    redirectTo: `${window.location.origin}/auth/callback`,
+                    redirectTo: `${window.location.origin}/auth/callback?next=/profile`,
                 },
             });
         }
@@ -31,6 +32,19 @@ export function ActiveVibecodersSection() {
 
     useEffect(() => {
         async function fetchActiveVibecoders() {
+            // Check if current user has projects to hide the placeholder
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase
+                    .from('vibecoder_profiles')
+                    .select('total_projects')
+                    .eq('id', user.id)
+                    .single();
+                if (profile) {
+                    setCurrentUserTotalProjects(profile.total_projects || 0);
+                }
+            }
+
             // Fetch users who have at least 1 project, along with their projects
             const { data, error } = await supabase
                 .from('vibecoder_profiles')
@@ -71,17 +85,19 @@ export function ActiveVibecodersSection() {
                         ))}
 
                         {/* Placeholder Card (Clickable to Create Profile) */}
-                        <Link href="/profile" onClick={handleCreateProfileClick} className="block group outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-3xl h-full">
-                            <Card className="rounded-3xl border-dashed border-2 border-border shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full min-h-[320px] bg-muted/10 flex flex-col items-center justify-center text-center p-8">
-                                <div className="w-20 h-20 bg-background rounded-full flex items-center justify-center shadow-sm border border-border mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-all duration-300">
-                                    <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                    </svg>
-                                </div>
-                                <h3 className="text-2xl font-bold tracking-tight mb-2 group-hover:text-primary transition-colors">You belongs here.</h3>
-                                <p className="text-muted-foreground text-lg">Create your profile and start shipping</p>
-                            </Card>
-                        </Link>
+                        {(currentUserTotalProjects === null || currentUserTotalProjects === 0) && (
+                            <Link href="/profile" onClick={handleCreateProfileClick} className="block group outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-3xl h-full">
+                                <Card className="rounded-3xl border-dashed border-2 border-border shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full min-h-[320px] bg-muted/10 flex flex-col items-center justify-center text-center p-8">
+                                    <div className="w-20 h-20 bg-background rounded-full flex items-center justify-center shadow-sm border border-border mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-all duration-300">
+                                        <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-2xl font-bold tracking-tight mb-2 group-hover:text-primary transition-colors">Add your first Project</h3>
+                                    <p className="text-muted-foreground text-lg">Create your portfolio and start maintaining</p>
+                                </Card>
+                            </Link>
+                        )}
                     </>
                 )}
             </div>

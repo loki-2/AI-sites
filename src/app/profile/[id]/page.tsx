@@ -43,11 +43,25 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
             let loadedProjects: VibecoderProject[] = [];
             if (projectsData) {
                 loadedProjects = projectsData as VibecoderProject[];
+                // Sort by status
+                const getStatusWeight = (tags: string[]) => {
+                    if (tags.some(t => t.toLowerCase() === 'shipped')) return 1;
+                    if (tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')) return 2;
+                    if (tags.some(t => t.toLowerCase() === 'experiment')) return 3;
+                    return 4;
+                };
+                loadedProjects.sort((a, b) => {
+                    const weightA = getStatusWeight(a.tags);
+                    const weightB = getStatusWeight(b.tags);
+                    if (weightA !== weightB) return weightA - weightB;
+                    // Fallback to recent if same status
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                });
                 setProjects(loadedProjects);
             }
 
             const shipped = loadedProjects.filter(p => p.tags.includes('shipped') || p.tags.includes('Shipped')).length;
-            const inProgress = loadedProjects.filter(p => p.tags.includes('in progress') || p.tags.includes('In Progress')).length;
+            const inProgress = loadedProjects.filter(p => p.tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')).length;
             const experiments = loadedProjects.filter(p => p.tags.includes('experiment') || p.tags.includes('Experiment')).length;
 
             setProfile({
@@ -131,8 +145,20 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                                 </div>
                             )}
 
+                            {profile?.availability && (
+                                <div className="mt-6 mb-2">
+                                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-background text-sm font-medium shadow-sm">
+                                        <span className={`w-2 h-2 rounded-full ${profile.availability === 'Available for gigs' ? 'bg-green-500' :
+                                            profile.availability === 'Not looking for gigs' ? 'bg-blue-500' :
+                                                'bg-orange-500'
+                                            }`} />
+                                        {profile.availability}
+                                    </span>
+                                </div>
+                            )}
+
                             {profile?.social_url && (
-                                <div className="mt-6">
+                                <div className="mt-4">
                                     <a
                                         href={profile.social_url.startsWith('http') ? profile.social_url : `https://${profile.social_url}`}
                                         target="_blank"
@@ -164,7 +190,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </span>
-                                <div><span className="text-primary">{profile?.in_progress_projects || 0}</span> In Progress</div>
+                                <div><span className="text-primary">{profile?.in_progress_projects || 0}</span> Half baked</div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="p-1.5 bg-muted rounded-md border border-border">

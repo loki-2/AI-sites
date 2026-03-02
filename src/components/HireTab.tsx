@@ -19,14 +19,14 @@ export function HireTab({ tabs }: { tabs?: React.ReactNode }) {
                     {tabs && <div className="mb-12">{tabs}</div>}
 
                     <div className="max-w-2xl mx-auto">
-                        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 bg-gradient-to-br from-primary via-primary/80 to-muted-foreground bg-clip-text text-transparent">
-                            Hire the best<br />Vibe Coders
+                        <h1 className="text-5xl md:text-7xl font-extrabold tracking-medium mb-2 pb-3 bg-gradient-to-br from-primary via-primary/80 to-muted-foreground bg-clip-text text-transparent leading-tight">
+                            Monetize Your <br /> Vibe Coding Skills
                         </h1>
-                        <p className="text-xl text-muted-foreground mb-10 leading-relaxed max-w-xl mx-auto">
-                            Connect with top-tier AI engineers and UI specialists shipping the next generation of digital experiences.
+                        <p className="text-xl text-muted-foreground mb-10 leading-relaxed tracking-medium max-w-xl mx-auto">
+                            A new place to showcase your projects, <br /> get seen and hired for gigs.
                         </p>
 
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center items-end mt-4">
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-4">
                             <div className="flex flex-col items-center gap-3">
                                 <CreateProfileButton size="lg" className="rounded-lg text-base font-semibold px-8 h-14 shadow-xl hover:-translate-y-1 transition-transform bg-primary">
                                     Create Portfolio

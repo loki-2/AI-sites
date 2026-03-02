@@ -94,7 +94,7 @@ export default function RootLayout({
               <div className="flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2">
                   <span className="text-xl font-bold tracking-tight">
-                    VibeCoders
+                    GetVibecoderz
                   </span>
                 </Link>
                 <nav className="hidden md:flex items-center gap-6 text-sm">
@@ -116,19 +116,15 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
 
           {/* Footer */}
-          <footer className="border-t border-border bg-muted/30">
+          <footer className="border-t border-border bg-muted/30 mt-auto">
             <div className="max-w-6xl mx-auto px-4 py-8">
-              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="text-sm text-muted-foreground">
-                  <p>
-                    AI-curated news for builders.{" "}
+              <div className="flex flex-col items-center justify-center gap-4 text-center">
+                <div className="text-sm text-muted-foreground w-full">
+                  <p className="w-full">
                     <span className="text-foreground font-medium">
-                      Ship faster with better signal.
+                      On-demand next gen web and mobile talent
                     </span>
                   </p>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <p></p>
                 </div>
               </div>
             </div>

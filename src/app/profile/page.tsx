@@ -14,11 +14,11 @@ import { ProjectCard } from "@/components/ProjectCard";
 import { ProjectFormModal } from "@/components/ProjectFormModal";
 
 const BUILD_TAGS_OPTIONS = [
-    "Web apps", "Mobile apps"
+    "Web apps", "Mobile apps", "MVP Builder", "SaaS Builder", "AI Apps", "Automation Engineer", "Websites",
 ];
 import { ProfileEditModal } from "@/components/ProfileEditModal";
 import { GithubActivityWidget } from "@/components/GithubActivityWidget";
-import { Edit2 } from "lucide-react";
+import { Edit2, Share2, Check } from "lucide-react";
 import { BADGE_EMOJIS } from "@/lib/utils";
 
 // Predefined badges
@@ -45,10 +45,24 @@ export default function ProfilePage() {
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
     const [projectToEdit, setProjectToEdit] = useState<VibecoderProject | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [hasCopied, setHasCopied] = useState(false);
+
+    const handleShareProfile = async () => {
+        if (!profile?.id) return;
+        const url = `${window.location.origin}/profile/${profile.id}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            setHasCopied(true);
+            setTimeout(() => setHasCopied(false), 2000);
+        } catch (err) {
+            console.error("Failed to copy profile link", err);
+        }
+    };
 
     // Form State for completion
     const [bio, setBio] = useState("");
     const [socialUrl, setSocialUrl] = useState("");
+    const [availability, setAvailability] = useState("");
     const [badges, setBadges] = useState<VibecoderBadge[]>([]);
     const [buildTags, setBuildTags] = useState<string[]>([]);
 
@@ -82,13 +96,27 @@ export default function ProfilePage() {
             let loadedProjects: VibecoderProject[] = [];
             if (projectsData) {
                 loadedProjects = projectsData as VibecoderProject[];
+                // Sort by status
+                const getStatusWeight = (tags: string[]) => {
+                    if (tags.some(t => t.toLowerCase() === 'shipped')) return 1;
+                    if (tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')) return 2;
+                    if (tags.some(t => t.toLowerCase() === 'experiment')) return 3;
+                    return 4;
+                };
+                loadedProjects.sort((a, b) => {
+                    const weightA = getStatusWeight(a.tags);
+                    const weightB = getStatusWeight(b.tags);
+                    if (weightA !== weightB) return weightA - weightB;
+                    // Fallback to recent if same status
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                });
                 setProjects(loadedProjects);
             }
 
             if (profileData) {
                 // Compute project stats based on loaded projects tags
                 const shipped = loadedProjects.filter(p => p.tags.includes('shipped') || p.tags.includes('Shipped')).length;
-                const inProgress = loadedProjects.filter(p => p.tags.includes('in progress') || p.tags.includes('In Progress')).length;
+                const inProgress = loadedProjects.filter(p => p.tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')).length;
                 const experiments = loadedProjects.filter(p => p.tags.includes('experiment') || p.tags.includes('Experiment')).length;
 
                 setProfile({
@@ -101,6 +129,7 @@ export default function ProfilePage() {
 
                 setBio(profileData.bio || "");
                 setSocialUrl(profileData.social_url || "");
+                setAvailability(profileData.availability || "");
                 setBadges(profileData.badges || []);
             } else if (profileError && profileError.code === 'PGRST116') {
                 // Profile doesn't exist, create it auto
@@ -137,11 +166,11 @@ export default function ProfilePage() {
         setSaving(true);
         const { error } = await supabase
             .from('vibecoder_profiles')
-            .update({ bio, badges, social_url: socialUrl, build_tags: buildTags })
+            .update({ bio, badges, social_url: socialUrl, availability, build_tags: buildTags })
             .eq('id', user.id);
 
         if (!error) {
-            setProfile({ ...profile, bio, badges, social_url: socialUrl, build_tags: buildTags });
+            setProfile({ ...profile, bio, badges, social_url: socialUrl, availability, build_tags: buildTags });
         }
         setSaving(false);
     };
@@ -150,6 +179,7 @@ export default function ProfilePage() {
         setProfile({ ...updatedProfile, ...updatedProfile.projects && { projects: projects } });
         setBio(updatedProfile.bio || "");
         setSocialUrl(updatedProfile.social_url || "");
+        setAvailability(updatedProfile.availability || "");
         setBuildTags(updatedProfile.build_tags || []);
         setBadges(updatedProfile.badges || []);
         setIsEditModalOpen(false);
@@ -227,15 +257,24 @@ export default function ProfilePage() {
                         <div>
                             <div className="flex items-center gap-3 mb-2">
                                 <h1 className="text-3xl font-extrabold tracking-tight">{profile?.name}</h1>
-                                {!isProfileIncomplete && (
+                                <div className="flex items-center gap-1">
                                     <button
-                                        onClick={() => setIsEditModalOpen(true)}
+                                        onClick={handleShareProfile}
                                         className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                                        title="Edit Profile"
+                                        title="Share Profile"
                                     >
-                                        <Edit2 className="w-4 h-4" />
+                                        {hasCopied ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
                                     </button>
-                                )}
+                                    {!isProfileIncomplete && (
+                                        <button
+                                            onClick={() => setIsEditModalOpen(true)}
+                                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                                            title="Edit Profile"
+                                        >
+                                            <Edit2 className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             {profile?.location && (
                                 <p className="text-muted-foreground flex items-center gap-2 text-sm mb-4">
@@ -262,6 +301,18 @@ export default function ProfilePage() {
                                     ))}
                                 </div>
                             )}
+
+                            {profile?.availability && !isProfileIncomplete && (
+                                <div className="mt-6">
+                                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-background text-sm font-medium shadow-sm">
+                                        <span className={`w-2 h-2 rounded-full ${profile.availability === 'Available for gigs' ? 'bg-green-500' :
+                                            profile.availability === 'Not looking for gigs' ? 'bg-blue-500' :
+                                                'bg-orange-500'
+                                            }`} />
+                                        {profile.availability}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -282,7 +333,7 @@ export default function ProfilePage() {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </span>
-                                <div className="flex items-center gap-2"><span className="text-primary font-bold">{profile?.in_progress_projects || 0}</span> In Progress</div>
+                                <div className="flex items-center gap-2"><span className="text-primary font-bold">{profile?.in_progress_projects || 0}</span> Half baked</div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="p-1.5 bg-muted rounded-md border border-border">
@@ -302,7 +353,7 @@ export default function ProfilePage() {
                                         <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(var(--primary),0.8)]"></span>
                                         Profile Completion
                                     </h2>
-                                    <p className="text-sm text-muted-foreground mb-4">Tell the community about yourself and your skills to get started.</p>
+
                                 </div>
                                 <div className="space-y-3">
                                     <Label className="block text-sm font-bold uppercase tracking-wider text-muted-foreground">About</Label>
@@ -310,7 +361,7 @@ export default function ProfilePage() {
                                         value={bio}
                                         onChange={(e) => setBio(e.target.value)}
                                         className="bg-background/50 focus:bg-background focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none h-32"
-                                        placeholder="Helping businesses and creatives grow..."
+                                        placeholder="I build web app MVPs in 2 days..."
                                     />
                                 </div>
                                 <div className="space-y-3">
@@ -321,6 +372,28 @@ export default function ProfilePage() {
                                         className="bg-background/50 focus:bg-background focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                                         placeholder="https://x.com/yourhandle or LinkedIn"
                                     />
+                                </div>
+                                <div className="space-y-4">
+                                    <Label className="block text-sm font-bold uppercase tracking-wider text-muted-foreground">Availability</Label>
+                                    <div className="flex flex-col gap-2">
+                                        {[
+                                            { label: "Available for gigs", dot: "bg-green-500" },
+                                            { label: "Not looking for gigs", dot: "bg-blue-500" },
+                                            { label: "Loaded up with projects", dot: "bg-orange-500" }
+                                        ].map((opt) => (
+                                            <button
+                                                key={opt.label}
+                                                onClick={() => setAvailability(opt.label)}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium transition-all text-left ${availability === opt.label
+                                                    ? 'bg-primary/10 border-primary shadow-sm'
+                                                    : 'bg-background hover:bg-muted/50 border-border text-foreground'
+                                                    }`}
+                                            >
+                                                <span className={`w-2.5 h-2.5 rounded-full ${opt.dot} shadow-sm`} />
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div className="space-y-4">
                                     <Label className="block text-sm font-bold uppercase tracking-wider text-muted-foreground">What do you build?</Label>

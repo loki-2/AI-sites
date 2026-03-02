@@ -173,4 +173,5 @@ CREATE POLICY "Users can delete their own avatars"
 -- =========================================================================
 ALTER TABLE public.vibecoder_profiles
 ADD COLUMN IF NOT EXISTS build_tags TEXT[] DEFAULT '{}',
-ADD COLUMN IF NOT EXISTS github_username TEXT;
+ADD COLUMN IF NOT EXISTS github_username TEXT,
+ADD COLUMN IF NOT EXISTS availability TEXT;
