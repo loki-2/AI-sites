@@ -8,75 +8,71 @@ import { GithubActivityWidget } from "@/components/GithubActivityWidget";
 import { BADGE_EMOJIS } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import { Github, Linkedin, Twitter, Link2 } from 'lucide-react';
+import useSWR from 'swr';
+
+const fetchPublicProfile = async (id: string) => {
+    const supabase = createSupabaseBrowserClient();
+
+    // 1. Fetch Profile
+    const { data: profileData, error: profileError } = await supabase
+        .from('vibecoder_profiles')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (profileError || !profileData) {
+        throw new Error('Profile not found');
+    }
+
+    // 2. Fetch Projects
+    const { data: projectsData } = await supabase
+        .from('vibecoder_projects')
+        .select('*')
+        .eq('profile_id', id)
+        .order('created_at', { ascending: false });
+
+    let loadedProjects: VibecoderProject[] = [];
+    if (projectsData) {
+        loadedProjects = projectsData as VibecoderProject[];
+        // Sort by status
+        const getStatusWeight = (tags: string[]) => {
+            if (tags.some(t => t.toLowerCase() === 'shipped')) return 1;
+            if (tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')) return 2;
+            if (tags.some(t => t.toLowerCase() === 'experiment')) return 3;
+            return 4;
+        };
+        loadedProjects.sort((a, b) => {
+            const weightA = getStatusWeight(a.tags);
+            const weightB = getStatusWeight(b.tags);
+            if (weightA !== weightB) return weightA - weightB;
+            // Fallback to recent if same status
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+    }
+
+    const shipped = loadedProjects.filter(p => p.tags.includes('shipped') || p.tags.includes('Shipped')).length;
+    const inProgress = loadedProjects.filter(p => p.tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')).length;
+    const experiments = loadedProjects.filter(p => p.tags.includes('experiment') || p.tags.includes('Experiment')).length;
+
+    const finalProfile = {
+        ...(profileData as VibecoderProfile),
+        total_projects: loadedProjects.length,
+        shipped_projects: shipped,
+        in_progress_projects: inProgress,
+        experiment_projects: experiments
+    };
+
+    return { profile: finalProfile, projects: loadedProjects };
+};
 
 export default function PublicProfilePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
+    const { data, error, isLoading } = useSWR(id ? ['public_profile', id] : null, ([_, profileId]) => fetchPublicProfile(profileId as string));
 
-    const [profile, setProfile] = useState<VibecoderProfile | null>(null);
-    const [projects, setProjects] = useState<VibecoderProject[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(false);
-    const supabase = createSupabaseBrowserClient();
-
-    useEffect(() => {
-        async function fetchProfile() {
-            // 1. Fetch Profile
-            const { data: profileData, error: profileError } = await supabase
-                .from('vibecoder_profiles')
-                .select('*')
-                .eq('id', id)
-                .single();
-
-            if (profileError || !profileData) {
-                setError(true);
-                setLoading(false);
-                return;
-            }
-
-            // 2. Fetch Projects
-            const { data: projectsData } = await supabase
-                .from('vibecoder_projects')
-                .select('*')
-                .eq('profile_id', id)
-                .order('created_at', { ascending: false });
-
-            let loadedProjects: VibecoderProject[] = [];
-            if (projectsData) {
-                loadedProjects = projectsData as VibecoderProject[];
-                // Sort by status
-                const getStatusWeight = (tags: string[]) => {
-                    if (tags.some(t => t.toLowerCase() === 'shipped')) return 1;
-                    if (tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')) return 2;
-                    if (tags.some(t => t.toLowerCase() === 'experiment')) return 3;
-                    return 4;
-                };
-                loadedProjects.sort((a, b) => {
-                    const weightA = getStatusWeight(a.tags);
-                    const weightB = getStatusWeight(b.tags);
-                    if (weightA !== weightB) return weightA - weightB;
-                    // Fallback to recent if same status
-                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                });
-                setProjects(loadedProjects);
-            }
-
-            const shipped = loadedProjects.filter(p => p.tags.includes('shipped') || p.tags.includes('Shipped')).length;
-            const inProgress = loadedProjects.filter(p => p.tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')).length;
-            const experiments = loadedProjects.filter(p => p.tags.includes('experiment') || p.tags.includes('Experiment')).length;
-
-            setProfile({
-                ...(profileData as VibecoderProfile),
-                total_projects: loadedProjects.length,
-                shipped_projects: shipped,
-                in_progress_projects: inProgress,
-                experiment_projects: experiments
-            });
-
-            setLoading(false);
-        }
-
-        fetchProfile();
-    }, [id, supabase]);
+    const loading = isLoading;
+    const profile = data?.profile;
+    const projects = data?.projects || [];
 
     if (loading) {
         return (
@@ -165,8 +161,11 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                                         rel="noreferrer"
                                         className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground font-bold rounded-full hover:bg-primary/90 transition-colors shadow-sm"
                                     >
+                                        {profile.social_url.toLowerCase().includes('github.com') ? <Github className="w-4 h-4" /> :
+                                            profile.social_url.toLowerCase().includes('linkedin.com') ? <Linkedin className="w-4 h-4" /> :
+                                                profile.social_url.toLowerCase().includes('x.com') || profile.social_url.toLowerCase().includes('twitter.com') ? <Twitter className="w-4 h-4" /> :
+                                                    <Link2 className="w-4 h-4" />}
                                         Get in touch
-                                        {/* <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg> */}
                                     </a>
                                 </div>
                             )}

@@ -7,13 +7,60 @@ import { VibecoderCard } from "@/components/VibecoderCard";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
+import useSWR from 'swr';
+
+const fetchActiveVibecoders = async ([_key, limit]: [string, number]) => {
+    const supabase = createSupabaseBrowserClient();
+
+    // Check if current user has projects to hide the placeholder
+    const { data: { user } } = await supabase.auth.getUser();
+    let userTotalProjects = null;
+    if (user) {
+        const { data: profile } = await supabase
+            .from('vibecoder_profiles')
+            .select('total_projects')
+            .eq('id', user.id)
+            .single();
+        if (profile) {
+            userTotalProjects = profile.total_projects || 0;
+        }
+    }
+
+    // Fetch users who have at least 1 project, along with their projects
+    const { data, error } = await supabase
+        .from('vibecoder_profiles')
+        .select('*, vibecoder_projects(*)', { count: 'exact' })
+        .gt('total_projects', 0)
+        .order('total_projects', { ascending: false })
+        .limit(limit);
+
+    if (error) throw error;
+
+    let mappedProfiles = [] as any[];
+    if (data) {
+        mappedProfiles = (data as any[]).map(p => ({
+            ...p,
+            projects: p.vibecoder_projects || []
+        }));
+        mappedProfiles.forEach(p => {
+            p.projects.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        });
+    }
+
+    return { profiles: mappedProfiles as VibecoderProfile[], userTotalProjects };
+};
 
 export function ActiveVibecodersSection() {
-    const [profiles, setProfiles] = useState<VibecoderProfile[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [currentUserTotalProjects, setCurrentUserTotalProjects] = useState<number | null>(null);
-    const supabase = createSupabaseBrowserClient();
     const router = useRouter();
+    const supabase = createSupabaseBrowserClient();
+    const [pageLimit, setPageLimit] = useState(10);
+
+    const { data, isLoading } = useSWR(['active_vibecoders', pageLimit], fetchActiveVibecoders);
+    const profiles = data?.profiles || [];
+    const currentUserTotalProjects = data?.userTotalProjects ?? null;
+    const loading = isLoading;
+
+    const hasMore = profiles.length === pageLimit;
 
     const handleCreateProfileClick = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -29,47 +76,6 @@ export function ActiveVibecodersSection() {
             });
         }
     };
-
-    useEffect(() => {
-        async function fetchActiveVibecoders() {
-            // Check if current user has projects to hide the placeholder
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const { data: profile } = await supabase
-                    .from('vibecoder_profiles')
-                    .select('total_projects')
-                    .eq('id', user.id)
-                    .single();
-                if (profile) {
-                    setCurrentUserTotalProjects(profile.total_projects || 0);
-                }
-            }
-
-            // Fetch users who have at least 1 project, along with their projects
-            const { data, error } = await supabase
-                .from('vibecoder_profiles')
-                .select('*, vibecoder_projects(*)')
-                .gt('total_projects', 0)
-                .order('total_projects', { ascending: false });
-
-            if (data) {
-                // Map the nested vibecoder_projects to the standard projects property
-                const mappedProfiles = (data as any[]).map(p => ({
-                    ...p,
-                    projects: p.vibecoder_projects || []
-                }));
-                // Sort projects by newest first to get the best thumbnails
-                mappedProfiles.forEach(p => {
-                    p.projects.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                });
-                setProfiles(mappedProfiles);
-            } else if (error) {
-                console.error("Error fetching active vibecoders:", error);
-            }
-            setLoading(false);
-        }
-        fetchActiveVibecoders();
-    }, [supabase]);
 
     return (
         <div className="w-full pt-8 pb-20">
@@ -101,6 +107,17 @@ export function ActiveVibecodersSection() {
                     </>
                 )}
             </div>
+
+            {!loading && hasMore && (
+                <div className="flex justify-center mt-12 w-full">
+                    <button
+                        onClick={() => setPageLimit(prev => prev + 10)}
+                        className="px-6 py-2.5 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-full border border-border transition-colors shadow-sm"
+                    >
+                        Load More Vibecoders
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

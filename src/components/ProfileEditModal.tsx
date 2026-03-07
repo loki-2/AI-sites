@@ -21,7 +21,7 @@ const AVAILABLE_BADGES = [
 const SKILL_LEVELS = ["beginner", "moderate", "expert"];
 
 const BUILD_TAGS_OPTIONS = [
-    "Web apps", "Mobile apps", "MVP Builder", "SaaS Builder", "AI Apps", "Automation Engineer", "Websites"
+    "Web apps", "Mobile apps", "MVP Builder", "SaaS Builder", "Landing Pages",
 ];
 
 export function ProfileEditModal({

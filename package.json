@@ -31,6 +31,7 @@
     "react-github-calendar": "^5.0.5",
     "rss-parser": "^3.13.0",
     "slugify": "^1.6.6",
+    "swr": "^2.4.1",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"
   },

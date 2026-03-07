@@ -1,15 +1,26 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { CreateProfileButton } from "@/components/CreateProfileButton";
 import Link from "next/link";
 import { ActiveVibecodersSection } from "@/components/ActiveVibecodersSection";
 import { AllProjectsSection } from "@/components/AllProjectsSection";
 import { cn } from "@/lib/utils";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export function HireTab({ tabs }: { tabs?: React.ReactNode }) {
     const [view, setView] = useState<'coders' | 'projects'>('coders');
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const supabase = createSupabaseBrowserClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            setIsAuthenticated(!!session);
+        };
+        checkAuth();
+    }, []);
 
     return (
         <div className="flex flex-col items-center justify-center text-center w-full">
@@ -23,14 +34,20 @@ export function HireTab({ tabs }: { tabs?: React.ReactNode }) {
                             Monetize Your <br /> Vibe Coding Skills
                         </h1>
                         <p className="text-xl text-muted-foreground mb-10 leading-relaxed tracking-medium max-w-xl mx-auto">
-                            A new place to showcase your projects, <br /> get seen and hired for gigs.
+                            A new place to showcase your projects, <br /> get seen and hired for freelance gigs.
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-4">
                             <div className="flex flex-col items-center gap-3">
-                                <CreateProfileButton size="lg" className="rounded-lg text-base font-semibold px-8 h-14 shadow-xl hover:-translate-y-1 transition-transform bg-primary">
-                                    Create Portfolio
-                                </CreateProfileButton>
+                                {isAuthenticated ? (
+                                    <Link href="/profile" className="inline-flex items-center justify-center rounded-lg text-base font-semibold px-8 h-14 shadow-xl hover:-translate-y-1 transition-transform bg-primary text-primary-foreground min-w-[200px]">
+                                        Go to Portfolio
+                                    </Link>
+                                ) : (
+                                    <CreateProfileButton size="lg" className="rounded-lg text-base font-semibold px-8 h-14 shadow-xl hover:-translate-y-1 transition-transform bg-primary">
+                                        Create Portfolio
+                                    </CreateProfileButton>
+                                )}
                                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">If you are vibe coder</span>
                             </div>
                         </div>

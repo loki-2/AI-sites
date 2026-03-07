@@ -5,6 +5,7 @@ import { ArticleCard } from "@/components/ArticleCard";
 import { ArticleSkeleton } from "@/components/ArticleSkeleton";
 import { Button } from "@/components/ui/button";
 import type { PublishedArticle } from "@/types";
+import useSWR from 'swr';
 
 type Category = 'all' | 'news' | 'actionable';
 
@@ -20,24 +21,12 @@ function ArticlesFeedSkeleton() {
 
 export function LearningTab() {
     const [activeCategory, setActiveCategory] = useState<Category>('all');
-    const [articles, setArticles] = useState<PublishedArticle[]>([]);
-    const [loading, setLoading] = useState(true);
+    const fetchArticles = async (url: string) => {
+        const response = await fetch(url);
+        return response.json() as Promise<PublishedArticle[]>;
+    };
 
-    // Fetch articles on mount
-    useEffect(() => {
-        async function fetchArticles() {
-            try {
-                const response = await fetch('/api/articles');
-                const data = await response.json();
-                setArticles(data);
-            } catch (error) {
-                console.error('Failed to fetch articles:', error);
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchArticles();
-    }, []);
+    const { data: articles = [], isLoading: loading } = useSWR('/api/articles', fetchArticles);
 
     // Filter articles based on category
     const filteredArticles = activeCategory === 'all'

@@ -6,6 +6,7 @@ import type { VibecoderProject, VibecoderProfile } from "@/types";
 import { ProjectCard } from "@/components/ProjectCard";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import useSWR from 'swr';
 
 // Interface for the joined data returned from Supabase
 interface ProjectWithAuthor extends VibecoderProject {
@@ -16,68 +17,58 @@ interface ProjectWithAuthor extends VibecoderProject {
     };
 }
 
-export function AllProjectsSection() {
-    const [projects, setProjects] = useState<ProjectWithAuthor[]>([]);
-    const [loading, setLoading] = useState(true);
+const fetchAllProjects = async ([_key, limit]: [string, number]) => {
     const supabase = createSupabaseBrowserClient();
+    const { data, error } = await supabase
+        .from('vibecoder_projects')
+        .select(`
+            *,
+            author:vibecoder_profiles(id, name, avatar_url)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
-    useEffect(() => {
-        async function fetchAllProjects() {
-            // Fetch all projects along with their author's basic profile details
-            const { data, error } = await supabase
-                .from('vibecoder_projects')
-                .select(`
-                    *,
-                    author:vibecoder_profiles(id, name, avatar_url)
-                `)
-                .order('created_at', { ascending: false });
+    if (error) throw error;
 
-            if (error) {
-                console.error("Error fetching all projects:", error);
-                setLoading(false);
-                return;
+    if (data) {
+        const formattedProjects = (data as any[]).map(p => ({
+            ...p,
+            author: Array.isArray(p.author) ? p.author[0] : p.author
+        })) as ProjectWithAuthor[];
+
+        const sortOrder: Record<string, number> = {
+            "shipped": 1,
+            "experiment": 2,
+            "half baked": 3
+        };
+
+        formattedProjects.sort((a, b) => {
+            const aHighTag = Math.min(...a.tags.map(t => {
+                const lookup = t.toLowerCase() === 'in progress' ? 'half baked' : t.toLowerCase();
+                return sortOrder[lookup] || 99;
+            }));
+            const bHighTag = Math.min(...b.tags.map(t => {
+                const lookup = t.toLowerCase() === 'in progress' ? 'half baked' : t.toLowerCase();
+                return sortOrder[lookup] || 99;
+            }));
+
+            if (aHighTag !== bHighTag) {
+                return aHighTag - bHighTag;
             }
 
-            if (data) {
-                // Handle Supabase's array mapping for foreign keys. author is likely returned as an array or a single object depending on relation type. Since a project has one author profile, it should be an object (or first index of array).
-                const formattedProjects = (data as any[]).map(p => ({
-                    ...p,
-                    author: Array.isArray(p.author) ? p.author[0] : p.author
-                })) as ProjectWithAuthor[];
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
 
-                // Sort by specified tag hierarchy: Shipped -> Experiment -> Half baked
-                const sortOrder: Record<string, number> = {
-                    "shipped": 1,
-                    "experiment": 2,
-                    "half baked": 3
-                };
+        return formattedProjects;
+    }
+    return [];
+};
 
-                formattedProjects.sort((a, b) => {
-                    // Find the most 'prestigious' tag for a project to sort by
-                    const aHighTag = Math.min(...a.tags.map(t => {
-                        const lookup = t.toLowerCase() === 'in progress' ? 'half baked' : t.toLowerCase();
-                        return sortOrder[lookup] || 99;
-                    }));
-                    const bHighTag = Math.min(...b.tags.map(t => {
-                        const lookup = t.toLowerCase() === 'in progress' ? 'half baked' : t.toLowerCase();
-                        return sortOrder[lookup] || 99;
-                    }));
+export function AllProjectsSection() {
+    const [pageLimit, setPageLimit] = useState(12);
+    const { data: projects = [], isLoading: loading } = useSWR(['all_projects', pageLimit], fetchAllProjects);
 
-                    if (aHighTag !== bHighTag) {
-                        return aHighTag - bHighTag;
-                    }
-
-                    // Fallback to newest if tags are identical tier
-                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                });
-
-                setProjects(formattedProjects);
-            }
-            setLoading(false);
-        }
-
-        fetchAllProjects();
-    }, [supabase]);
+    const hasMore = projects.length === pageLimit;
 
     return (
         <div className="w-full pt-8 pb-20">
@@ -123,6 +114,17 @@ export function AllProjectsSection() {
                     ))
                 )}
             </div>
+
+            {!loading && hasMore && (
+                <div className="flex justify-center mt-12 w-full">
+                    <button
+                        onClick={() => setPageLimit(prev => prev + 12)}
+                        className="px-6 py-2.5 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-full border border-border transition-colors shadow-sm"
+                    >
+                        Load More Projects
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

@@ -14,12 +14,13 @@ import { ProjectCard } from "@/components/ProjectCard";
 import { ProjectFormModal } from "@/components/ProjectFormModal";
 
 const BUILD_TAGS_OPTIONS = [
-    "Web apps", "Mobile apps", "MVP Builder", "SaaS Builder", "AI Apps", "Automation Engineer", "Websites",
+    "Web apps", "Mobile apps", "MVP Builder", "SaaS Builder", "Landing Pages",
 ];
 import { ProfileEditModal } from "@/components/ProfileEditModal";
 import { GithubActivityWidget } from "@/components/GithubActivityWidget";
-import { Edit2, Share2, Check } from "lucide-react";
+import { Edit2, Share2, Check, Link2, Github, Linkedin, Twitter } from "lucide-react";
 import { BADGE_EMOJIS } from "@/lib/utils";
+import useSWR from 'swr';
 
 // Predefined badges
 const AVAILABLE_BADGES = [
@@ -69,97 +70,107 @@ export default function ProfilePage() {
     // If both are empty, the user has not completed their profile setup
     const isProfileIncomplete = !profile?.bio && (!profile?.badges || profile.badges.length === 0);
 
+    const { data: profileSWRData, isLoading: swrLoading, mutate } = useSWR('private_profile', async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return { user: null, profile: null, projects: [] };
+        }
+
+        // Load Profile
+        const { data: profileData, error: profileError } = await supabase
+            .from('vibecoder_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+        // Load Projects
+        const { data: projectsData } = await supabase
+            .from('vibecoder_projects')
+            .select('*')
+            .eq('profile_id', user.id)
+            .order('created_at', { ascending: false });
+
+        let loadedProjects: VibecoderProject[] = [];
+        if (projectsData) {
+            loadedProjects = projectsData as VibecoderProject[];
+            // Sort by status
+            const getStatusWeight = (tags: string[]) => {
+                if (tags.some(t => t.toLowerCase() === 'shipped')) return 1;
+                if (tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')) return 2;
+                if (tags.some(t => t.toLowerCase() === 'experiment')) return 3;
+                return 4;
+            };
+            loadedProjects.sort((a, b) => {
+                const weightA = getStatusWeight(a.tags);
+                const weightB = getStatusWeight(b.tags);
+                if (weightA !== weightB) return weightA - weightB;
+                // Fallback to recent if same status
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            });
+        }
+
+        let finalProfile = null;
+        if (profileData) {
+            // Compute project stats based on loaded projects tags
+            const shipped = loadedProjects.filter(p => p.tags.includes('shipped') || p.tags.includes('Shipped')).length;
+            const inProgress = loadedProjects.filter(p => p.tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')).length;
+            const experiments = loadedProjects.filter(p => p.tags.includes('experiment') || p.tags.includes('Experiment')).length;
+
+            finalProfile = {
+                ...(profileData as VibecoderProfile),
+                total_projects: loadedProjects.length,
+                shipped_projects: shipped,
+                in_progress_projects: inProgress,
+                experiment_projects: experiments
+            };
+        } else if (profileError && profileError.code === 'PGRST116') {
+            // Profile doesn't exist, create it auto
+            const newProfile = {
+                id: user.id,
+                name: user.user_metadata?.full_name || user.email || "New Vibecoder",
+                avatar_url: user.user_metadata?.avatar_url || "",
+                badges: [],
+            };
+            const { data: insertedData } = await supabase
+                .from('vibecoder_profiles')
+                .insert([newProfile])
+                .select()
+                .single();
+
+            if (insertedData) {
+                finalProfile = {
+                    ...(insertedData as VibecoderProfile),
+                    total_projects: loadedProjects.length,
+                    shipped_projects: 0,
+                    in_progress_projects: 0,
+                    experiment_projects: 0
+                };
+            }
+        }
+        return { user, profile: finalProfile, projects: loadedProjects };
+    });
+
     useEffect(() => {
-        async function loadData() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                // Redirect to login or home if not authenticated
+        if (profileSWRData) {
+            if (!profileSWRData.user) {
                 router.push('/');
                 return;
             }
-            setUser(user);
-
-            // Load Profile
-            const { data: profileData, error: profileError } = await supabase
-                .from('vibecoder_profiles')
-                .select('*')
-                .eq('id', user.id)
-                .single();
-
-            // Load Projects
-            const { data: projectsData } = await supabase
-                .from('vibecoder_projects')
-                .select('*')
-                .eq('profile_id', user.id)
-                .order('created_at', { ascending: false });
-
-            let loadedProjects: VibecoderProject[] = [];
-            if (projectsData) {
-                loadedProjects = projectsData as VibecoderProject[];
-                // Sort by status
-                const getStatusWeight = (tags: string[]) => {
-                    if (tags.some(t => t.toLowerCase() === 'shipped')) return 1;
-                    if (tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')) return 2;
-                    if (tags.some(t => t.toLowerCase() === 'experiment')) return 3;
-                    return 4;
-                };
-                loadedProjects.sort((a, b) => {
-                    const weightA = getStatusWeight(a.tags);
-                    const weightB = getStatusWeight(b.tags);
-                    if (weightA !== weightB) return weightA - weightB;
-                    // Fallback to recent if same status
-                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                });
-                setProjects(loadedProjects);
+            setUser(profileSWRData.user);
+            setProjects(profileSWRData.projects);
+            if (profileSWRData.profile) {
+                setProfile(profileSWRData.profile);
+                setBio(profileSWRData.profile.bio || "");
+                setSocialUrl(profileSWRData.profile.social_url || "");
+                setAvailability(profileSWRData.profile.availability || "");
+                setBadges(profileSWRData.profile.badges || []);
+                setBuildTags(profileSWRData.profile.build_tags || []);
             }
-
-            if (profileData) {
-                // Compute project stats based on loaded projects tags
-                const shipped = loadedProjects.filter(p => p.tags.includes('shipped') || p.tags.includes('Shipped')).length;
-                const inProgress = loadedProjects.filter(p => p.tags.some(t => t.toLowerCase() === 'half baked' || t.toLowerCase() === 'in progress')).length;
-                const experiments = loadedProjects.filter(p => p.tags.includes('experiment') || p.tags.includes('Experiment')).length;
-
-                setProfile({
-                    ...(profileData as VibecoderProfile),
-                    total_projects: loadedProjects.length,
-                    shipped_projects: shipped,
-                    in_progress_projects: inProgress,
-                    experiment_projects: experiments
-                });
-
-                setBio(profileData.bio || "");
-                setSocialUrl(profileData.social_url || "");
-                setAvailability(profileData.availability || "");
-                setBadges(profileData.badges || []);
-            } else if (profileError && profileError.code === 'PGRST116') {
-                // Profile doesn't exist, create it auto
-                const newProfile = {
-                    id: user.id,
-                    name: user.user_metadata?.full_name || user.email || "New Vibecoder",
-                    avatar_url: user.user_metadata?.avatar_url || "",
-                    badges: [],
-                };
-                const { data: insertedData } = await supabase
-                    .from('vibecoder_profiles')
-                    .insert([newProfile])
-                    .select()
-                    .single();
-
-                if (insertedData) {
-                    setProfile({
-                        ...(insertedData as VibecoderProfile),
-                        total_projects: loadedProjects.length,
-                        shipped_projects: 0,
-                        in_progress_projects: 0,
-                        experiment_projects: 0
-                    });
-                }
-            }
-
+            setLoading(false);
+        } else if (swrLoading === false && !profileSWRData) {
             setLoading(false);
         }
-        loadData();
-    }, [router, supabase]);
+    }, [profileSWRData, router, swrLoading]);
 
     const handleSaveProfile = async () => {
         if (!user || !profile) return;
@@ -170,18 +181,13 @@ export default function ProfilePage() {
             .eq('id', user.id);
 
         if (!error) {
-            setProfile({ ...profile, bio, badges, social_url: socialUrl, availability, build_tags: buildTags });
+            mutate();
         }
         setSaving(false);
     };
 
-    const handleProfileSaved = (updatedProfile: VibecoderProfile) => {
-        setProfile({ ...updatedProfile, ...updatedProfile.projects && { projects: projects } });
-        setBio(updatedProfile.bio || "");
-        setSocialUrl(updatedProfile.social_url || "");
-        setAvailability(updatedProfile.availability || "");
-        setBuildTags(updatedProfile.build_tags || []);
-        setBadges(updatedProfile.badges || []);
+    const handleProfileSaved = () => {
+        mutate();
         setIsEditModalOpen(false);
     };
 
@@ -197,21 +203,8 @@ export default function ProfilePage() {
         setBadges(badges.map(b => b.name === badgeName ? { ...b, level } : b));
     };
 
-    const fetchProjects = async () => {
-        if (!user) return;
-        const { data: projectsData } = await supabase
-            .from('vibecoder_projects')
-            .select('*')
-            .eq('profile_id', user.id)
-            .order('created_at', { ascending: false });
-
-        if (projectsData) {
-            setProjects(projectsData as VibecoderProject[]);
-        }
-    };
-
     const onProjectSaved = () => {
-        fetchProjects();
+        mutate();
         setIsProjectModalOpen(false);
         setProjectToEdit(null);
     };

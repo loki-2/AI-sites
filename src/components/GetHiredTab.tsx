@@ -16,7 +16,7 @@ export function GetHiredTab({ tabs }: { tabs?: React.ReactNode }) {
 
                     <div className="max-w-2xl mx-auto">
                         <h1 className="text-5xl md:text-7xl font-extrabold tracking-medium mb-2 pb-3 bg-gradient-to-br from-primary via-primary/80 to-muted-foreground bg-clip-text text-transparent leading-tight">
-                            Ship Faster With AI-Native Builders
+                            Build your Product 10x Faster With AI-Native Builders
                         </h1>
                         <p className="text-xl text-muted-foreground leading-relaxed max-w-xl mx-auto mb-10">
                             Browse portfolios, and hire project-ready builders who ship real, working products.                     </p>
