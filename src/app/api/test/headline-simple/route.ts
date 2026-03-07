@@ -1,15 +1,18 @@
 // Simple headline test with 1 item
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getLLM } from "@/lib/llm/provider";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { extractAndParseJSON } from "@/lib/utils/json-parser";
+import { requireDevAuth } from "@/lib/utils/dev-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireDevAuth(request);
+  if (authError) return authError;
   try {
     console.log("[Simple Headline Test] Starting...");
-    
+
     const llm = getLLM({ temperature: 0.5, maxTokens: 1024 });
-    
+
     const testItem = {
       title: "Show HN: I built a tool to generate API docs automatically",
       url: "https://example.com/api-docs",
@@ -42,7 +45,7 @@ IMPORTANT: Respond with ONLY valid JSON. No markdown, no code blocks, no extra t
     // Return raw response for debugging
     let parsed = null;
     let parseError = null;
-    
+
     try {
       parsed = extractAndParseJSON(content);
     } catch (err) {
@@ -62,7 +65,6 @@ IMPORTANT: Respond with ONLY valid JSON. No markdown, no code blocks, no extra t
       {
         error: "Test failed",
         details: (error as Error).message,
-        stack: (error as Error).stack,
       },
       { status: 500 }
     );

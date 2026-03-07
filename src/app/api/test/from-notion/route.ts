@@ -8,8 +8,11 @@ import { getRawItemsFromLast24Hours } from "@/lib/notion/operations";
 import { aggregateItems, sortAndFilterItems } from "@/lib/agents";
 import { addProcessedItem } from "@/lib/notion/operations";
 import { postItemsForApproval } from "@/lib/slack/messages";
+import { requireDevAuth } from "@/lib/utils/dev-auth";
 
 export async function GET(request: NextRequest) {
+  const authError = requireDevAuth(request);
+  if (authError) return authError;
   try {
     console.log("[Test From Notion] Starting pipeline from Notion Raw DB...");
 

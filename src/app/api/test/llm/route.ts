@@ -2,11 +2,14 @@
 // Test LLM Connection
 // ===========================================
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getLLM } from "@/lib/llm/provider";
 import { HumanMessage } from "@langchain/core/messages";
+import { requireDevAuth } from "@/lib/utils/dev-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireDevAuth(request);
+  if (authError) return authError;
   try {
     console.log("[Test LLM] Testing Gemini API...");
     console.log("[Test LLM] GOOGLE_API_KEY set:", !!process.env.GOOGLE_API_KEY);
@@ -31,7 +34,6 @@ export async function GET() {
       {
         error: "LLM test failed",
         details: error.message,
-        stack: error.stack?.split("\n").slice(0, 5),
       },
       { status: 500 }
     );

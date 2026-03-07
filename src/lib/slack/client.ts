@@ -55,7 +55,11 @@ export function verifySlackRequest(
       .update(sigBaseString)
       .digest("hex");
 
-  // Compare signatures using timing-safe comparison
+  // Compare signatures using timing-safe comparison.
+  // Must check lengths first — timingSafeEqual throws if lengths differ.
+  if (Buffer.byteLength(mySignature) !== Buffer.byteLength(signature)) {
+    return false;
+  }
   return crypto.timingSafeEqual(
     Buffer.from(mySignature),
     Buffer.from(signature)

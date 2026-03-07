@@ -1,9 +1,13 @@
 // Direct Gemini API test without LangChain
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireDevAuth } from "@/lib/utils/dev-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireDevAuth(request);
+  if (authError) return authError;
+
   const apiKey = process.env.GOOGLE_API_KEY;
-  
+
   if (!apiKey) {
     return NextResponse.json({ error: "GOOGLE_API_KEY not set" }, { status: 500 });
   }
@@ -33,17 +37,17 @@ JSON format:
     );
 
     const data = await response.json();
-    
+
     if (!response.ok) {
       return NextResponse.json({ error: "Gemini API error", details: data }, { status: 500 });
     }
 
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    
+
     // Try to parse
     let parsed = null;
     let parseError = null;
-    
+
     try {
       // Extract JSON from response
       let jsonStr = text.trim();

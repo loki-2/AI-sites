@@ -5,7 +5,9 @@ import { SchemaMarkup } from "@/components/SchemaMarkup";
 import { generateOrganizationSchema } from "@/lib/seo/schemas";
 import { AuthButton } from "@/components/AuthButton";
 import { CreateProfileButton } from "@/components/CreateProfileButton";
+import { FreelanceBannerWrapper } from "@/components/FreelanceBannerWrapper";
 import Link from "next/link";
+import Script from "next/script";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -87,6 +89,15 @@ export default function RootLayout({
       <body
         className={`${manrope.variable} font-sans antialiased min-h-screen`}
       >
+        <Script strategy="afterInteractive" src="https://www.googletagmanager.com/gtag/js?id=G-E1KWTYZ2L1" />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-E1KWTYZ2L1');
+          `}
+        </Script>
         <div className="min-h-screen flex flex-col">
           {/* Header */}
           <header className="border-b border-border bg-background/80 backdrop-blur-md text-foreground sticky top-0 z-50">
@@ -114,6 +125,9 @@ export default function RootLayout({
 
           {/* Main Content */}
           <main className="flex-1">{children}</main>
+
+          {/* Global verification banner above footer */}
+          <FreelanceBannerWrapper />
 
           {/* Footer */}
           <footer className="border-t border-border bg-muted/30 mt-auto">

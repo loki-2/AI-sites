@@ -9,20 +9,27 @@ import type { VibecoderProfile, VibecoderBadge } from "@/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { BADGE_EMOJIS } from "@/lib/utils";
 
-const AVAILABLE_BADGES = [
-    "Frontend",
-    "Web UI",
-    "Mobile UI",
-    "Security",
-    "Backend",
-    "Mobile Dev",
-    "Fullstack Dev",
-];
-const SKILL_LEVELS = ["beginner", "moderate", "expert"];
-
 const BUILD_TAGS_OPTIONS = [
-    "Web apps", "Mobile apps", "MVP Builder", "SaaS Builder", "Landing Pages",
+    "Web apps", "Mobile apps", "SaaS Builder", "Landing Pages",
 ];
+
+const EXPERTISE_MAP: Record<string, string[]> = {
+    "Web apps": [
+        "React", "Next.js", "Tailwind CSS", "Supabase",
+        "AWS", "GCP", "PostgreSQL", "MongoDB"
+    ],
+    "Mobile apps": [
+        "Flutter", "React Native", "Dart", "Swift",
+        "Kotlin", "Firebase"
+    ],
+    "Landing Pages": [
+        "React", "Tailwind CSS", "Webflow", "Framer",
+        "WordPress", "SEO Optimization"
+    ],
+    "SaaS Builder": [
+        "Stripe", "Next.js", "Supabase", "React", "Authentication"
+    ]
+};
 
 export function ProfileEditModal({
     profile,
@@ -42,7 +49,13 @@ export function ProfileEditModal({
     const [buildTags, setBuildTags] = useState<string[]>(profile.build_tags || []);
     const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url || "");
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [isMvpBuilder, setIsMvpBuilder] = useState(profile.is_mvp_builder || false);
     const [saving, setSaving] = useState(false);
+
+    // Compute dynamically available expertise based on selected build tags
+    const availableExpertise = Array.from(new Set(
+        buildTags.flatMap(tag => EXPERTISE_MAP[tag] || [])
+    ));
 
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -55,12 +68,8 @@ export function ProfileEditModal({
         if (badges.some(b => b.name === badgeName)) {
             setBadges(badges.filter(b => b.name !== badgeName));
         } else {
-            setBadges([...badges, { name: badgeName, level: 'moderate' }]);
+            setBadges([...badges, { name: badgeName, level: '' }]);
         }
-    };
-
-    const handleBadgeLevelChange = (badgeName: string, level: string) => {
-        setBadges(badges.map(b => b.name === badgeName ? { ...b, level } : b));
     };
 
     const handleBuildTagToggle = (tag: string) => {
@@ -90,7 +99,7 @@ export function ProfileEditModal({
 
         const { error } = await supabase
             .from('vibecoder_profiles')
-            .update({ name, bio, badges, social_url: socialUrl, availability, avatar_url: finalAvatarUrl, build_tags: buildTags })
+            .update({ name, bio, badges, social_url: socialUrl, availability, avatar_url: finalAvatarUrl, build_tags: buildTags, is_mvp_builder: isMvpBuilder })
             .eq('id', profile.id);
 
         if (!error) {
@@ -105,7 +114,7 @@ export function ProfileEditModal({
 
         setSaving(false);
         if (!error) {
-            onSave({ ...profile, name, bio, badges, social_url: socialUrl, availability, avatar_url: finalAvatarUrl, build_tags: buildTags });
+            onSave({ ...profile, name, bio, badges, social_url: socialUrl, availability, avatar_url: finalAvatarUrl, build_tags: buildTags, is_mvp_builder: isMvpBuilder });
         } else {
             console.error("Failed to save profile", error);
         }
@@ -153,6 +162,26 @@ export function ProfileEditModal({
                             onChange={e => setSocialUrl(e.target.value)}
                             placeholder="https://x.com/yourhandle"
                         />
+                    </div>
+
+                    <div className="space-y-3">
+                        <Label>MVP Builder Status</Label>
+                        <div className="flex items-center gap-4 p-4 border border-border rounded-xl bg-background/50 hover:bg-muted/30 transition-colors">
+                            <div className="flex-grow">
+                                <div className="flex items-center gap-2 mb-1">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src="/mvpbadge.png" alt="MVP Badge" className="w-5 h-5 object-contain" />
+                                    <h4 className="font-semibold text-foreground">Top-tier MVP Builder</h4>
+                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed">Let founders know you're an expert at shipping early-stage minimum viable products rapidly.</p>
+                            </div>
+                            <button
+                                onClick={() => setIsMvpBuilder(!isMvpBuilder)}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background ${isMvpBuilder ? 'bg-primary' : 'bg-muted'}`}
+                            >
+                                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${isMvpBuilder ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-3">
@@ -211,45 +240,34 @@ export function ProfileEditModal({
 
                     <div className="space-y-4">
                         <Label>Expertise</Label>
-                        <div className="flex flex-wrap gap-2">
-                            {AVAILABLE_BADGES.map((badge) => {
-                                const isActive = badges.some(b => b.name === badge);
-                                return (
-                                    <button
-                                        key={badge}
-                                        onClick={() => handleBadgeToggle(badge)}
-                                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all border ${isActive
-                                            ? 'bg-primary/10 text-primary border-primary/20'
-                                            : 'bg-background hover:bg-muted text-muted-foreground border-border'
-                                            }`}
-                                    >
-                                        <span className="mr-1.5">{BADGE_EMOJIS[badge] || "✨"}</span>
-                                        {badge}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                        {availableExpertise.length === 0 ? (
+                            <p className="text-sm text-muted-foreground italic">Select what you build above to see relevant expertise options.</p>
+                        ) : (
+                            <div className="flex flex-wrap gap-2">
+                                {availableExpertise.map((badge) => {
+                                    const isActive = badges.some(b => b.name === badge);
+                                    return (
+                                        <button
+                                            key={badge}
+                                            onClick={() => handleBadgeToggle(badge)}
+                                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all border ${isActive
+                                                ? 'bg-primary/10 text-primary border-primary/20 shadow-sm'
+                                                : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                                                }`}
+                                        >
+                                            {badge}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                         {badges.length > 0 && (
-                            <div className="space-y-3 pt-4">
+                            <div className="flex flex-wrap gap-2 pt-4">
                                 {badges.map(badge => (
-                                    <div key={badge.name} className="flex items-center justify-between gap-2 text-sm bg-muted/20 p-2 rounded-lg border border-border/30">
-                                        <span className="font-medium text-foreground ml-2">
-                                            <span className="mr-2">{BADGE_EMOJIS[badge.name] || "✨"}</span>
+                                    <div key={badge.name} className="flex items-center gap-2 text-sm bg-muted/20 px-3 py-1.5 rounded-lg border border-border/30 shadow-sm">
+                                        <span className="font-medium text-foreground">
                                             {badge.name}
                                         </span>
-                                        <Select
-                                            value={badge.level}
-                                            onValueChange={(val) => handleBadgeLevelChange(badge.name, val)}
-                                        >
-                                            <SelectTrigger className="w-[130px] h-8 text-xs bg-background border-border shadow-sm">
-                                                <SelectValue placeholder="Level" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {SKILL_LEVELS.map(level => (
-                                                    <SelectItem key={level} value={level} className="text-xs capitalize">{level}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
                                     </div>
                                 ))}
                             </div>

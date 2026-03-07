@@ -8,7 +8,7 @@ import { GithubActivityWidget } from "@/components/GithubActivityWidget";
 import { BADGE_EMOJIS } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { Github, Linkedin, Twitter, Link2 } from 'lucide-react';
+import { Github, Linkedin, Twitter, Link2, BadgeCheck } from 'lucide-react';
 import useSWR from 'swr';
 
 const fetchPublicProfile = async (id: string) => {
@@ -114,107 +114,120 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                             </div>
                         )}
                         <div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <h1 className="text-3xl font-extrabold tracking-tight">{profile?.name}</h1>
-                            </div>
-                            {profile?.location && (
-                                <p className="text-muted-foreground flex items-center gap-2 text-sm mb-4">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    {profile.location}
+                            <div className="flex-grow">
+                                <h1 className="text-3xl font-extrabold text-foreground tracking-tight mb-2 flex items-center gap-2">
+                                    {profile.name}
+                                    {profile.is_verified && <BadgeCheck className="w-6 h-6 text-primary shrink-0" />}
+                                </h1>
+                                {profile.location && (
+                                    <p className="text-muted-foreground flex items-center gap-2 text-sm mb-4">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        {profile.location}
+                                    </p>
+                                )}
+
+                                <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap mt-4">
+                                    {profile.bio}
                                 </p>
-                            )}
 
-                            <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap mt-4">
-                                {profile.bio}
-                            </p>
+                                {profile?.build_tags && profile.build_tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 pt-2">
+                                        {profile.build_tags.map(tag => (
+                                            <span key={tag} className="px-2.5 py-1 bg-muted/50 border border-border/50 text-muted-foreground rounded-md text-xs font-semibold tracking-wide">
+                                                {tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
 
-                            {profile?.build_tags && profile.build_tags.length > 0 && (
-                                <div className="flex flex-wrap gap-2 pt-2">
-                                    {profile.build_tags.map(tag => (
-                                        <span key={tag} className="px-2.5 py-1 bg-muted/50 border border-border/50 text-muted-foreground rounded-md text-xs font-semibold tracking-wide">
-                                            {tag}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-
-                            {profile?.availability && (
-                                <div className="mt-6 mb-2">
-                                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-background text-sm font-medium shadow-sm">
-                                        <span className={`w-2 h-2 rounded-full ${profile.availability === 'Available for gigs' ? 'bg-green-500' :
-                                            profile.availability === 'Not looking for gigs' ? 'bg-blue-500' :
-                                                'bg-orange-500'
-                                            }`} />
-                                        {profile.availability}
-                                    </span>
-                                </div>
-                            )}
-
-                            {profile?.social_url && (
-                                <div className="mt-4">
-                                    <a
-                                        href={profile.social_url.startsWith('http') ? profile.social_url : `https://${profile.social_url}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground font-bold rounded-full hover:bg-primary/90 transition-colors shadow-sm"
-                                    >
-                                        {profile.social_url.toLowerCase().includes('github.com') ? <Github className="w-4 h-4" /> :
-                                            profile.social_url.toLowerCase().includes('linkedin.com') ? <Linkedin className="w-4 h-4" /> :
-                                                profile.social_url.toLowerCase().includes('x.com') || profile.social_url.toLowerCase().includes('twitter.com') ? <Twitter className="w-4 h-4" /> :
-                                                    <Link2 className="w-4 h-4" />}
-                                        Get in touch
-                                    </a>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        {/* Stats Summary */}
-                        <div className="flex flex-col items-left gap-4 text-sm font-medium">
-                            <div className="flex items-center gap-2">
-                                <span className="p-1.5 bg-muted rounded-md border border-border">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                    </svg>
-                                </span>
-                                <div><span className="text-primary">{profile?.shipped_projects || 0}</span> Shipped</div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="p-1.5 bg-muted rounded-md border border-border">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                </span>
-                                <div><span className="text-primary">{profile?.in_progress_projects || 0}</span> Half baked</div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="p-1.5 bg-muted rounded-md border border-border">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                                    </svg>
-                                </span>
-                                <div><span className="text-primary">{profile?.experiment_projects || 0}</span> Experiments</div>
-                            </div>
-                        </div>
-
-                        {profile?.badges && profile.badges.length > 0 && (
-                            <div className="space-y-3 pt-2 border-t border-border/50">
-                                <Label className="block text-sm font-bold uppercase tracking-wider text-muted-foreground pt-4 mb-2">Expertise</Label>
-                                <div className="flex flex-wrap gap-2">
-                                    {profile.badges.map(badge => (
-                                        <div key={badge.name} className="flex items-center gap-1.5 bg-muted/50 border border-border px-3 py-1.5 rounded-md shadow-sm">
-                                            <span className="text-sm">{BADGE_EMOJIS[badge.name] || "✨"}</span>
-                                            <span className="text-sm font-medium text-foreground">{badge.name}</span>
-                                            <span className="text-xs text-muted-foreground capitalize border-l border-border/50 pl-1.5 ml-1">{badge.level}</span>
+                                {profile?.is_mvp_builder && (
+                                    <div className="mt-4">
+                                        <div className="inline-flex items-center gap-1.5 shadow-sm">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src="/mvpbadge.png" alt="MVP Builder" className="w-8 h-8 object-contain" />
+                                            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 tracking-wide uppercase">MVP Builder</span>
                                         </div>
-                                    ))}
+                                    </div>
+                                )}
+
+                                {profile?.availability && (
+                                    <div className="mt-6 mb-2">
+                                        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-background text-sm font-medium shadow-sm">
+                                            <span className={`w-2 h-2 rounded-full ${profile.availability === 'Available for gigs' ? 'bg-green-500' :
+                                                profile.availability === 'Not looking for gigs' ? 'bg-blue-500' :
+                                                    'bg-orange-500'
+                                                }`} />
+                                            {profile.availability}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {profile?.social_url && (
+                                    <div className="mt-4">
+                                        <a
+                                            href={profile.social_url.startsWith('http') ? profile.social_url : `https://${profile.social_url}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground font-bold rounded-full hover:bg-primary/90 transition-colors shadow-sm"
+                                        >
+                                            {profile.social_url.toLowerCase().includes('github.com') ? <Github className="w-4 h-4" /> :
+                                                profile.social_url.toLowerCase().includes('linkedin.com') ? <Linkedin className="w-4 h-4" /> :
+                                                    profile.social_url.toLowerCase().includes('x.com') || profile.social_url.toLowerCase().includes('twitter.com') ? <Twitter className="w-4 h-4" /> :
+                                                        <Link2 className="w-4 h-4" />}
+                                            Get in touch
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            {/* Stats Summary */}
+                            <div className="flex flex-col items-left gap-4 text-sm font-medium">
+                                <div className="flex items-center gap-2">
+                                    <span className="p-1.5 bg-muted rounded-md border border-border">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                        </svg>
+                                    </span>
+                                    <div><span className="text-primary">{profile?.shipped_projects || 0}</span> Shipped</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="p-1.5 bg-muted rounded-md border border-border">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </span>
+                                    <div><span className="text-primary">{profile?.in_progress_projects || 0}</span> Half baked</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="p-1.5 bg-muted rounded-md border border-border">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                        </svg>
+                                    </span>
+                                    <div><span className="text-primary">{profile?.experiment_projects || 0}</span> Experiments</div>
                                 </div>
                             </div>
-                        )}
+
+                            {profile?.badges && profile.badges.length > 0 && (
+                                <div className="space-y-3 pt-2 border-t border-border/50">
+                                    <Label className="block text-sm font-bold uppercase tracking-wider text-muted-foreground pt-4 mb-2">Expertise</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {profile.badges.map(badge => (
+                                            <div key={badge.name} className="flex items-center gap-1.5 bg-muted/50 border border-border px-3 py-1.5 rounded-md shadow-sm">
+                                                <span className="text-sm">{BADGE_EMOJIS[badge.name] || ""}</span>
+                                                <span className="text-sm font-medium text-foreground">{badge.name}</span>
+                                                <span className="text-xs text-muted-foreground capitalize border-l border-border/50 pl-1.5 ml-1">{badge.level}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 

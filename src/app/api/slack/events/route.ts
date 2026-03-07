@@ -11,11 +11,25 @@ export async function POST(request: NextRequest) {
     // Get raw body for signature verification
     const rawBody = await request.text();
     console.log("[Slack Events] Received request, body length:", rawBody.length);
-    
+
+    // Extract Slack signature headers
     const timestamp = request.headers.get("x-slack-request-timestamp") || "";
     const signature = request.headers.get("x-slack-signature") || "";
 
-    // Parse body to check event type
+    // Verify request signature FIRST — before processing any event type.
+    // This prevents attackers from spoofing url_verification or other events.
+    const signingSecret = process.env.SLACK_SIGNING_SECRET;
+    if (!signingSecret) {
+      console.error("[Slack Events] SLACK_SIGNING_SECRET not set");
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    }
+
+    if (!verifySlackRequest(signingSecret, rawBody, timestamp, signature)) {
+      console.error("[Slack Events] Invalid signature");
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
+    // Parse body after signature is verified
     let body;
     try {
       body = JSON.parse(rawBody);
@@ -25,24 +39,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    // Handle URL verification challenge (no signature check needed)
+    // Handle URL verification challenge
     if (body.type === "url_verification") {
-      console.log("[Slack Events] URL verification - Challenge:", body.challenge);
-      // Return plain JSON response with just the challenge
+      console.log("[Slack Events] URL verification passed");
       return new NextResponse(
         JSON.stringify({ challenge: body.challenge }),
-        { 
+        {
           status: 200,
           headers: { "Content-Type": "application/json" }
         }
       );
-    }
-
-    // Verify request signature for other events
-    const signingSecret = process.env.SLACK_SIGNING_SECRET!;
-    if (!verifySlackRequest(signingSecret, rawBody, timestamp, signature)) {
-      console.error("[Slack Events] Invalid signature");
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     // Handle event callbacks
@@ -52,7 +58,7 @@ export async function POST(request: NextRequest) {
 
       // Handle specific events here if needed
       // For now, we're primarily using interactions (button clicks)
-      
+
       switch (event.type) {
         case "app_mention":
           // Bot was mentioned

@@ -8,19 +8,7 @@ import { getItemsReadyToPublish, addPublishedItem, updateProcessedItem } from "@
 import { insertArticle, slugExists } from "@/lib/supabase/client";
 import { postNotification } from "@/lib/slack/messages";
 import slugify from "slugify";
-
-// Verify cron secret for security
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.warn("[Cron] CRON_SECRET not set, allowing request");
-    return true;
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
-}
+import { verifyCronSecret } from "@/lib/utils/dev-auth";
 
 // Generate unique slug
 async function generateUniqueSlug(title: string): Promise<string> {
@@ -154,7 +142,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Also support GET for easy testing
-export async function GET(request: NextRequest) {
-  return POST(request);
-}
+// GET is intentionally removed — cron routes must only be triggered
+// via POST with a valid Authorization: Bearer <CRON_SECRET> header.

@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { VibecoderProfile } from "@/types";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { BadgeCheck } from "lucide-react";
 
 export function VibecoderCard({ profile }: { profile: VibecoderProfile }) {
     const router = useRouter();
@@ -43,8 +44,9 @@ export function VibecoderCard({ profile }: { profile: VibecoderProfile }) {
                             </div>
                         )}
                         <div>
-                            <h3 className="font-extrabold text-2xl leading-tight hover:text-primary transition-colors group-hover:text-primary">
+                            <h3 className="font-extrabold text-2xl leading-tight hover:text-primary transition-colors group-hover:text-primary flex items-center gap-1.5">
                                 {profile.name}
+                                {profile.is_verified && <BadgeCheck className="w-5 h-5 text-primary shrink-0" />}
                             </h3>
                             {profile.availability && (
                                 <p className="text-sm text-muted-foreground font-medium mt-1 flex items-center gap-1.5">

@@ -175,3 +175,90 @@ ALTER TABLE public.vibecoder_profiles
 ADD COLUMN IF NOT EXISTS build_tags TEXT[] DEFAULT '{}',
 ADD COLUMN IF NOT EXISTS github_username TEXT,
 ADD COLUMN IF NOT EXISTS availability TEXT;
+
+-- =========================================================================
+-- UPDATE 4: Founding 100 Freelance Verification System
+-- Appends verification tracking to profile and creates new tracker table
+-- =========================================================================
+
+-- Add verification flags to vibecoder profile
+ALTER TABLE public.vibecoder_profiles 
+ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'none';
+
+-- Create freelance_applications tracker table
+CREATE TABLE IF NOT EXISTS public.freelance_applications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES public.vibecoder_profiles(id) ON DELETE CASCADE NOT NULL,
+    hourly_rate TEXT NOT NULL,
+    capabilities TEXT[] DEFAULT '{}'::text[],
+    project_ids UUID[] DEFAULT '{}'::uuid[],
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Set up RLS for freelance_applications
+ALTER TABLE public.freelance_applications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public applications are viewable by admins/everyone."
+    ON public.freelance_applications FOR SELECT
+    USING ( true );
+
+CREATE POLICY "Users can insert their own freelance_applications."
+    ON public.freelance_applications FOR INSERT
+    WITH CHECK ( auth.uid() = profile_id );
+
+CREATE POLICY "Users can update own freelance_applications."
+    ON public.freelance_applications FOR UPDATE
+    USING ( auth.uid() = profile_id );
+
+CREATE POLICY "Users can delete own freelance_applications."
+    ON public.freelance_applications FOR DELETE
+    USING ( auth.uid() = profile_id );
+
+CREATE TRIGGER update_freelance_applications_updated_at
+    BEFORE UPDATE ON public.freelance_applications
+    FOR EACH ROW
+    EXECUTE PROCEDURE update_updated_at_column();
+
+-- =========================================================================
+-- UPDATE 5: Security Hardening - Prevent Client Updates to System Columns
+-- These triggers ensure malicious users cannot overwrite system-managed metrics
+-- =========================================================================
+
+-- Project counts and identifiers on profiles
+CREATE OR REPLACE FUNCTION prevent_profile_system_updates()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.id = OLD.id;
+    NEW.created_at = OLD.created_at;
+    -- Note: these counts are managed by the update_project_counts_trigger
+    NEW.total_projects = OLD.total_projects;
+    NEW.shipped_projects = OLD.shipped_projects;
+    NEW.in_progress_projects = OLD.in_progress_projects;
+    NEW.experiment_projects = OLD.experiment_projects;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER prevent_profile_system_updates_trigger
+    BEFORE UPDATE ON public.vibecoder_profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_profile_system_updates();
+
+-- Identifiers and creation dates on projects
+CREATE OR REPLACE FUNCTION prevent_project_system_updates()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.id = OLD.id;
+    NEW.profile_id = OLD.profile_id;
+    NEW.created_at = OLD.created_at;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER prevent_project_system_updates_trigger
+    BEFORE UPDATE ON public.vibecoder_projects
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_project_system_updates();

@@ -219,8 +219,24 @@ export interface VibecoderProfile {
   experiment_projects: number;
   created_at: string;
   updated_at: string;
+
+  // Verification features
+  is_verified?: boolean;
+  verification_status?: 'none' | 'pending' | 'approved' | 'rejected' | string;
+  is_mvp_builder?: boolean;
+
   // Extended UI property, conditionally loaded
   projects?: VibecoderProject[];
+}
+
+export interface FreelanceApplication {
+  id: string; // uuid
+  profile_id: string; // uuid references vibecoder_profiles
+  hourly_rate: string;
+  capabilities: string[];
+  project_ids: string[]; // array of uuid
+  status: 'pending' | 'approved' | 'rejected' | string;
+  created_at: string;
 }
 
 export interface VibecoderProject {

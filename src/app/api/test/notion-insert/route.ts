@@ -2,10 +2,13 @@
 // Test Notion Insert
 // ===========================================
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Client } from "@notionhq/client";
+import { requireDevAuth } from "@/lib/utils/dev-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireDevAuth(request);
+  if (authError) return authError;
   try {
     const notion = new Client({ auth: process.env.NOTION_API_KEY });
     const rawDbId = process.env.NOTION_RAW_DB_ID!;
@@ -42,7 +45,7 @@ export async function GET() {
     });
   } catch (error: any) {
     console.error("[Test Notion Insert] Error:", error);
-    
+
     // Extract detailed error info
     const errorInfo = {
       message: error.message,

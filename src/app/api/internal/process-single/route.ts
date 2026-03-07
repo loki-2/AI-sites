@@ -7,17 +7,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { updateProcessedItem } from "@/lib/notion/operations";
 import { writeArticle } from "@/lib/agents/writer";  // Now uses structured writer
 import { notion } from "@/lib/notion/client";
-
-// Verify internal secret
-function verifySecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return true;
-  return authHeader === `Bearer ${secret}`;
-}
+import { verifyCronSecret } from "@/lib/utils/dev-auth";
 
 export async function POST(request: NextRequest) {
-  if (!verifySecret(request)) {
+  if (!verifyCronSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

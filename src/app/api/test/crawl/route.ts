@@ -4,10 +4,13 @@
 // Test endpoint to verify crawler without full pipeline
 // Shows relevance scores and filtering
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { crawlAllSources, getSourcesStats, getKeywordStats } from "@/lib/crawlers";
+import { requireDevAuth } from "@/lib/utils/dev-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireDevAuth(request);
+  if (authError) return authError;
   try {
     console.log("\n[Test Crawl] Starting crawlers...\n");
 

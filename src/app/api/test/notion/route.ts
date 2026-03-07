@@ -2,10 +2,13 @@
 // Test Notion Connection
 // ===========================================
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Client } from "@notionhq/client";
+import { requireDevAuth } from "@/lib/utils/dev-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireDevAuth(request);
+  if (authError) return authError;
   try {
     const apiKey = process.env.NOTION_API_KEY;
     const rawDbId = process.env.NOTION_RAW_DB_ID;
@@ -21,10 +24,10 @@ export async function GET() {
 
     const results: Record<string, unknown> = {
       envVars: {
-        apiKey: apiKey ? "Set (starts with " + apiKey.slice(0, 10) + "...)" : "NOT SET",
-        rawDbId: rawDbId || "NOT SET",
-        processedDbId: processedDbId || "NOT SET", 
-        publishedDbId: publishedDbId || "NOT SET",
+        apiKey: apiKey ? "Set" : "NOT SET",
+        rawDbId: rawDbId ? "Set" : "NOT SET",
+        processedDbId: processedDbId ? "Set" : "NOT SET",
+        publishedDbId: publishedDbId ? "Set" : "NOT SET",
       },
       databases: {},
     };
@@ -57,8 +60,8 @@ export async function GET() {
           rawProperties: props, // Include raw for debugging
         };
       } catch (err) {
-        (results.databases as Record<string, unknown>)[name] = { 
-          error: (err as Error).message 
+        (results.databases as Record<string, unknown>)[name] = {
+          error: (err as Error).message
         };
       }
     }

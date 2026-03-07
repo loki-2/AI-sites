@@ -1,13 +1,16 @@
 // Test Slack connection
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { slack, SLACK_CHANNEL_ID } from "@/lib/slack/client";
+import { requireDevAuth } from "@/lib/utils/dev-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireDevAuth(request);
+  if (authError) return authError;
   try {
     console.log("[Slack Test] Testing connection...");
     console.log("[Slack Test] Channel ID:", SLACK_CHANNEL_ID);
     console.log("[Slack Test] Token set:", !!process.env.SLACK_BOT_TOKEN);
-    
+
     // Try to post a simple message
     const result = await slack.chat.postMessage({
       channel: SLACK_CHANNEL_ID,
@@ -27,7 +30,6 @@ export async function GET() {
         success: false,
         error: (error as Error).message,
         channelId: SLACK_CHANNEL_ID,
-        tokenSet: !!process.env.SLACK_BOT_TOKEN,
       },
       { status: 500 }
     );

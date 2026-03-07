@@ -9,19 +9,7 @@ import { addRawItemsBatch, getRawItemsFromLast24Hours } from "@/lib/notion/opera
 import { aggregateItems, sortAndFilterItems } from "@/lib/agents";
 import { addProcessedItem } from "@/lib/notion/operations";
 import { postItemsForApproval, postNotification } from "@/lib/slack/messages";
-
-// Verify cron secret for security
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.warn("[Cron] CRON_SECRET not set, allowing request");
-    return true;
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
-}
+import { verifyCronSecret } from "@/lib/utils/dev-auth";
 
 export async function POST(request: NextRequest) {
   // Verify authorization
@@ -101,7 +89,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Also support GET for easy testing
-export async function GET(request: NextRequest) {
-  return POST(request);
-}
+// GET is intentionally removed — cron routes must only be triggered
+// via POST with a valid Authorization: Bearer <CRON_SECRET> header.

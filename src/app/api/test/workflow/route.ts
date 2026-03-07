@@ -6,8 +6,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runArticleWorkflow } from "@/lib/agents/workflows/article-workflow";
 import type { ProcessedItem } from "@/types";
+import { requireDevAuth } from "@/lib/utils/dev-auth";
 
 export async function GET(request: NextRequest) {
+    const authError = requireDevAuth(request);
+    if (authError) return authError;
+
     console.log("\n========================================");
     console.log("TESTING ARTICLE WORKFLOW");
     console.log("========================================\n");
@@ -68,7 +72,6 @@ export async function GET(request: NextRequest) {
             {
                 success: false,
                 error: (error as Error).message,
-                stack: (error as Error).stack,
             },
             { status: 500 }
         );

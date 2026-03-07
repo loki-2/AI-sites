@@ -6,8 +6,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { crawlAllSources } from "@/lib/crawlers";
 import { aggregateItems, sortAndFilterItems } from "@/lib/agents";
+import { requireDevAuth } from "@/lib/utils/dev-auth";
 
 export async function GET(request: NextRequest) {
+  const authError = requireDevAuth(request);
+  if (authError) return authError;
   try {
     console.log("[Test Agents] Starting full pipeline test...");
 

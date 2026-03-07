@@ -1,11 +1,14 @@
 // Test full pipeline: Crawl → Headlines → Writer → Reviewer
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { crawlAllSources } from "@/lib/crawlers";
 import { generateHeadlines } from "@/lib/agents/headline";
 import { writeArticle } from "@/lib/agents/writer";
 import { reviewArticle } from "@/lib/agents/reviewer";
+import { requireDevAuth } from "@/lib/utils/dev-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireDevAuth(request);
+  if (authError) return authError;
   try {
     console.log("[Full Pipeline Test] Starting...");
     const startTime = Date.now();
