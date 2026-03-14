@@ -6,6 +6,9 @@ import { generateOrganizationSchema } from "@/lib/seo/schemas";
 import { AuthButton } from "@/components/AuthButton";
 import { CreateProfileButton } from "@/components/CreateProfileButton";
 import { FreelanceBannerWrapper } from "@/components/FreelanceBannerWrapper";
+import { GigsNewsletterSection } from "@/components/GigsNewsletterSection";
+import { GigsNewsletterModal } from "@/components/GigsNewsletterModal";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Script from "next/script";
 
@@ -18,7 +21,7 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://vibecoders.news"),
   title: {
-    default: "VibeCoders News | AI-Curated Tech News for Builders",
+    default: "Find Best Vibecoders",
     template: "%s | VibeCoders News",
   },
   description:
@@ -114,6 +117,11 @@ export default function RootLayout({
                   <Link href="/" className="hover:text-primary transition-colors">Learning</Link> */}
                 </nav>
                 <div className="flex items-center gap-3">
+                  <a href="#gigs-newsletter">
+                    <Button variant="ghost" size="sm" className="hidden md:flex text-muted-foreground hover:text-foreground">
+                      Join & Subscribe
+                    </Button>
+                  </a>
                   <CreateProfileButton variant="outline" size="sm" className="hidden md:flex" hideWhenComplete>
                     Build Portfolio
                   </CreateProfileButton>
@@ -129,16 +137,29 @@ export default function RootLayout({
           {/* Global verification banner above footer */}
           <FreelanceBannerWrapper />
 
+          {/* Gigs Newsletter Section */}
+          <div className=" w-full mx-auto bg-muted/40">
+            <GigsNewsletterSection />
+          </div>
+
           {/* Footer */}
-          <footer className="border-t border-border bg-muted/30 mt-auto">
+          <footer className="border-t border-border bg-muted/40 mt-auto">
             <div className="max-w-6xl mx-auto px-4 py-8">
               <div className="flex flex-col items-center justify-center gap-4 text-center">
-                <div className="text-sm text-muted-foreground w-full">
+                <div className="text-sm text-muted-foreground w-full flex flex-col items-center justify-center gap-3">
                   <p className="w-full">
                     <span className="text-foreground font-medium">
                       On-demand next gen web and mobile talent
                     </span>
                   </p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <Link href="/privacy" className="hover:text-foreground transition-colors hover:underline">
+                      Privacy Policy
+                    </Link>
+                    <Link href="/terms" className="hover:text-foreground transition-colors hover:underline">
+                      Terms of Service
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
