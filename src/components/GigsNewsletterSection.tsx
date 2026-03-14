@@ -35,7 +35,7 @@ export function GigsNewsletterSection() {
                         className="w-full sm:w-auto"
                         asChild
                     >
-                        <a href="https://discord.gg/your-invite-link" target="_blank" rel="noopener noreferrer">
+                        <a href="https://discord.gg/ZEp77KgjAE" target="_blank" rel="noopener noreferrer">
                             Join Discord
                         </a>
                     </Button>
