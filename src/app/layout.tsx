@@ -52,12 +52,21 @@ export const metadata: Metadata = {
     siteName: "getVibecoderz",
     title: "getVibecoderz | Find Best Vibecoders",
     description: " A new place to showcase your projects, get seen and hired for freelance gigs.",
+    images: [
+      {
+        url: "/banner.png",
+        width: 1200,
+        height: 630,
+        alt: "getVibecoderz Banner",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "getVibecoderz | Find Best Vibecoders",
     description: " A new place to showcase your projects, get seen and hired for freelance gigs.",
     creator: "@vibecoders",
+    images: ["/banner.png"],
   },
   robots: {
     index: true,
