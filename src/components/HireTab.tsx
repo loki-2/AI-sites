@@ -33,8 +33,8 @@ export function HireTab({ tabs }: { tabs?: React.ReactNode }) {
                         <h1 className="text-5xl md:text-7xl font-extrabold tracking-medium mb-2 pb-3 bg-gradient-to-br from-primary via-primary/80 to-muted-foreground bg-clip-text text-transparent leading-tight">
                             Monetize Your <br /> Vibe Coding Skills
                         </h1>
-                        <p className="text-xl text-muted-foreground mb-10 leading-relaxed tracking-medium max-w-xl mx-auto">
-                            A new place to showcase your projects, <br /> get seen and hired for freelance gigs.
+                        <p className="text-xl text-muted-foreground font-semibold mb-10 leading-relaxed tracking-medium max-w-xl mx-auto">
+                            IF You Can Build MVPs and Websites 10x Faster <br /> THIS IS FOR YOU.
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-4">
