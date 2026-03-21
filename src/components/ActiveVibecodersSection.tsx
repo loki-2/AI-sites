@@ -12,42 +12,63 @@ import useSWR from 'swr';
 const fetchActiveVibecoders = async ([_key, limit]: [string, number]) => {
     const supabase = createSupabaseBrowserClient();
 
-    // Check if current user has projects to hide the placeholder
+    // Check if current user has any shipped project to hide the placeholder
     const { data: { user } } = await supabase.auth.getUser();
-    let userTotalProjects = null;
+    let currentUserHasShipped = false;
     if (user) {
-        const { data: profile } = await supabase
-            .from('vibecoder_profiles')
-            .select('total_projects')
-            .eq('id', user.id)
-            .single();
-        if (profile) {
-            userTotalProjects = profile.total_projects || 0;
+        const { data: userProjects } = await supabase
+            .from('vibecoder_projects')
+            .select('id, tags')
+            .eq('profile_id', user.id);
+        if (userProjects) {
+            currentUserHasShipped = userProjects.some((p: any) =>
+                Array.isArray(p.tags) && p.tags.some((t: string) => t.toLowerCase() === 'shipped')
+            );
         }
     }
 
-    // Fetch users who have at least 1 project, along with their projects
+    // Fetch ALL profiles with their projects — we filter client-side since
+    // the shipped_projects counter column may be stale/unset.
+    // Use ascending created_at for FCFS ordering (logged-in user is pinned to front client-side).
     const { data, error } = await supabase
         .from('vibecoder_profiles')
-        .select('*, vibecoder_projects(*)', { count: 'exact' })
-        .gt('total_projects', 0)
-        .order('total_projects', { ascending: false })
-        .limit(limit);
+        .select('*, vibecoder_projects(*)')
+        .order('created_at', { ascending: true })
+        .limit(limit * 5); // over-fetch to account for profiles that will be filtered out
 
     if (error) throw error;
 
     let mappedProfiles = [] as any[];
     if (data) {
-        mappedProfiles = (data as any[]).map(p => ({
-            ...p,
-            projects: p.vibecoder_projects || []
-        }));
+        // Only include profiles with at least 1 shipped project (check actual tag on project rows)
+        mappedProfiles = (data as any[])
+            .map(p => ({
+                ...p,
+                projects: (p.vibecoder_projects || []) as any[]
+            }))
+            .filter(p =>
+                p.projects.some((proj: any) =>
+                    Array.isArray(proj.tags) && proj.tags.some((t: string) => t.toLowerCase() === 'shipped')
+                )
+            )
+            .slice(0, limit);
+
+        // Sort each profile's projects by newest first
         mappedProfiles.forEach(p => {
             p.projects.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         });
+
+        // Pin the logged-in user's profile to the front
+        if (user) {
+            const userIdx = mappedProfiles.findIndex(p => p.id === user.id);
+            if (userIdx > 0) {
+                const [userProfile] = mappedProfiles.splice(userIdx, 1);
+                mappedProfiles.unshift(userProfile);
+            }
+        }
     }
 
-    return { profiles: mappedProfiles as VibecoderProfile[], userTotalProjects };
+    return { profiles: mappedProfiles as VibecoderProfile[], userTotalProjects: currentUserHasShipped ? 1 : 0 };
 };
 
 export function ActiveVibecodersSection() {

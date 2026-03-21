@@ -32,6 +32,37 @@ export function ProjectFormModal({
     const [error, setError] = useState("");
     const supabase = createSupabaseBrowserClient();
 
+    // Re-derive and sync the project count columns on the profile from actual project tags
+    const syncProfileCounts = async (profileId: string) => {
+        const { data: allProjects } = await supabase
+            .from('vibecoder_projects')
+            .select('tags')
+            .eq('profile_id', profileId);
+
+        if (!allProjects) return;
+
+        let shipped = 0, inProgress = 0, experiment = 0;
+        for (const proj of allProjects) {
+            const tags: string[] = Array.isArray(proj.tags) ? proj.tags : [];
+            for (const tag of tags) {
+                const t = tag.toLowerCase();
+                if (t === 'shipped') shipped++;
+                else if (t === 'in progress') inProgress++;
+                else if (t === 'experiment') experiment++;
+            }
+        }
+
+        await supabase
+            .from('vibecoder_profiles')
+            .update({
+                total_projects: allProjects.length,
+                shipped_projects: shipped,
+                in_progress_projects: inProgress,
+                experiment_projects: experiment,
+            })
+            .eq('id', profileId);
+    };
+
     const handleSelectTags = (tag: string) => {
         if (selectedTags.includes(tag)) {
             setSelectedTags(selectedTags.filter(t => t !== tag));
@@ -124,6 +155,7 @@ export function ProjectFormModal({
                     .single();
 
                 if (dbError) throw dbError;
+                await syncProfileCounts(profileId);
                 onSave(updatedProject as VibecoderProject);
             } else {
                 const projectData = {
@@ -142,6 +174,7 @@ export function ProjectFormModal({
                     .single();
 
                 if (dbError) throw dbError;
+                await syncProfileCounts(profileId);
                 onSave(insertedProject as VibecoderProject);
             }
         } catch (err: unknown) {
@@ -277,9 +310,8 @@ export function ProjectFormModal({
                                                 setError(error.message);
                                                 setUploading(false);
                                             } else {
-                                                onClose(); // Close modal
-                                                // We don't have an onDelete prop, but if we call onSave with a deleted flag we could handle it.
-                                                // Let's reload page for simplicity or pass a dummy object.
+                                                await syncProfileCounts(profileId);
+                                                onClose();
                                                 window.location.reload();
                                             }
                                         }

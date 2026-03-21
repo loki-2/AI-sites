@@ -9,7 +9,13 @@ import { BadgeCheck } from "lucide-react";
 
 export function VibecoderCard({ profile }: { profile: VibecoderProfile }) {
     const router = useRouter();
-    const projects = profile.projects?.filter(p => p.tags.some(t => t.toLowerCase() === 'shipped')).slice(0, 2) || [];
+    const allProjects = profile.projects || [];
+    const projects = allProjects.filter(p => p.tags.some(t => t.toLowerCase() === 'shipped')).slice(0, 2);
+
+    // Compute counts from actual project tags (counter columns on profile may be stale)
+    const shippedCount = allProjects.filter(p => p.tags.some(t => t.toLowerCase() === 'shipped')).length;
+    const inProgressCount = allProjects.filter(p => p.tags.some(t => t.toLowerCase() === 'in progress')).length;
+    const experimentCount = allProjects.filter(p => p.tags.some(t => t.toLowerCase() === 'experiment')).length;
 
     const handleCardClick = () => {
         router.push(`/profile/${profile.id}`);
@@ -89,15 +95,15 @@ export function VibecoderCard({ profile }: { profile: VibecoderProfile }) {
                 {/* Stats Row */}
                 <div className="flex items-center gap-6 sm:gap-8 mb-6">
                     <div className="flex flex-col items-start">
-                        <span className="text-md font-bold">{profile.shipped_projects || 0}</span>
+                        <span className="text-md font-bold">{shippedCount}</span>
                         <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Shipped</span>
                     </div>
                     <div className="flex flex-col items-start">
-                        <span className="text-md font-bold">{profile.in_progress_projects || 0}</span>
+                        <span className="text-md font-bold">{inProgressCount}</span>
                         <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Half baked</span>
                     </div>
                     <div className="flex flex-col items-start">
-                        <span className="text-md font-bold">{profile.experiment_projects || 0}</span>
+                        <span className="text-md font-bold">{experimentCount}</span>
                         <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Experiments</span>
                     </div>
                 </div>
