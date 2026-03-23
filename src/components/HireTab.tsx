@@ -48,7 +48,7 @@ export function HireTab({ tabs }: { tabs?: React.ReactNode }) {
                                         Create Portfolio
                                     </CreateProfileButton>
                                 )}
-                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">If you are vibe coder</span>
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider"></span>
                             </div>
                         </div>
                     </div>
