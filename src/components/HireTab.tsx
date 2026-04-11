@@ -1,7 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
+import { Instrument_Serif } from "next/font/google";
 import { Button } from "@/components/ui/button";
+
+const instrumentSerif = Instrument_Serif({
+    weight: "400",
+    subsets: ["latin"],
+});
 import { CreateProfileButton } from "@/components/CreateProfileButton";
 import Link from "next/link";
 import { ActiveVibecodersSection } from "@/components/ActiveVibecodersSection";
@@ -25,26 +31,26 @@ export function HireTab({ tabs }: { tabs?: React.ReactNode }) {
     return (
         <div className="flex flex-col items-center justify-center text-center w-full">
             {/* Top Section Depth Container: Nav Tabs + Hero */}
-            <div className="w-full bg-[#161616] pb-16 pt-8 shadow-[inset_0_-10px_20px_-10px_rgba(0,0,0,0.1)] border-b border-border/40">
+            <div className="w-full bg-gradient-to-b from-[#121212] to-[#506b81] pb-16 pt-8 shadow-[inset_0_-10px_20px_-10px_rgba(0,0,0,0.1)] border-b border-border/40">
                 <div className="w-full max-w-7xl mx-auto px-4">
                     {tabs && <div className="mb-12">{tabs}</div>}
 
                     <div className="max-w-2xl mx-auto">
-                        <h1 className="text-5xl md:text-7xl font-extrabold tracking-medium mb-2 pb-3 bg-gradient-to-br from-primary via-primary/80 to-muted-foreground bg-clip-text text-transparent leading-tight">
+                        <h1 className={cn("text-6xl md:text-8xl tracking-lg mb-2 pb-3 bg-gray-200 bg-clip-text text-transparent leading-tight", instrumentSerif.className)}>
                             Monetize Your <br /> Vibe Coding Skills
                         </h1>
-                        <p className="text-xl text-muted-foreground font-semibold mb-10 leading-relaxed tracking-medium max-w-xl mx-auto">
+                        <p className="text-xl text-gray-300 font-semibold mb-10 leading-relaxed tracking-medium max-w-xl mx-auto">
                             IF You Can Build MVPs and Websites 10x Faster <br /> THIS IS FOR YOU.
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-4">
                             <div className="flex flex-col items-center gap-3">
                                 {isAuthenticated ? (
-                                    <Link href="/profile" className="inline-flex items-center justify-center rounded-lg text-base font-semibold px-8 h-14 shadow-xl hover:-translate-y-1 transition-transform bg-primary text-primary-foreground min-w-[200px]">
+                                    <Link href="/profile" className="inline-flex items-center justify-center rounded-lg text-base font-semibold px-8 h-14 shadow-xl hover:-translate-y-1 transition-transform bg-gray-200 text-primary-foreground min-w-[200px]">
                                         Go to Portfolio
                                     </Link>
                                 ) : (
-                                    <CreateProfileButton size="lg" className="rounded-lg text-base font-semibold px-8 h-14 shadow-xl hover:-translate-y-1 transition-transform bg-primary">
+                                    <CreateProfileButton size="lg" className="rounded-lg text-base font-semibold px-8 h-14 shadow-xl hover:-translate-y-1 transition-transform bg-gray-200">
                                         Create Portfolio
                                     </CreateProfileButton>
                                 )}

@@ -35,7 +35,7 @@ export default function HomePage() {
 
   const tabNavigation = (
     <div className="w-full flex justify-center">
-      <div className="inline-flex bg-[#161616] p-1.5 rounded-full items-center shrink-0 border border-border/50 shadow-sm overflow-x-auto w-full max-w-fit justify-start md:justify-center backdrop-blur-sm">
+      <div className="inline-flex bg-[#161616]/20 p-1.5 rounded-full items-center shrink-0 border border-border/50 shadow-sm overflow-x-auto w-full max-w-fit justify-start md:justify-center backdrop-blur-md">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -43,7 +43,7 @@ export default function HomePage() {
             className={cn(
               "px-6 md:px-8 py-2 md:py-2.5 text-sm md:text-base font-semibold rounded-full transition-all duration-300 whitespace-nowrap",
               activeTab === tab.id
-                ? "bg-background text-foreground shadow-md ring-1 ring-border/50"
+                ? "bg-[#ffffff]/4 text-foreground shadow-md"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
             )}
           >

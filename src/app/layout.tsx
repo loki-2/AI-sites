@@ -19,7 +19,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://vibecoders.news"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://getvibecoderz.com"),
   title: {
     default: "Find Best Vibecoders",
     template: "%s | VibeCoders News",
@@ -89,14 +89,31 @@ export default function RootLayout({
   const organizationSchema = generateOrganizationSchema({
     name: "VibeCoders News",
     description: "AI-curated tech news for builders who ship fast",
-    url: "https://vibecoders.news",
-    logo: "https://vibecoders.news/logo.png",
+    url: "https://getvibecoderz.com",
+    logo: "https://getvibecoderz.com/logo.png",
   });
+
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "GetVibecoderz",
+    url: "https://getvibecoderz.com",
+    description: "Find and hire AI-native vibe coders who ship real products fast.",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: "https://getvibecoderz.com/?q={search_term_string}",
+      "query-input": "required name=search_term_string",
+    },
+  };
 
   return (
     <html lang="en" className="dark">
       <head>
         <SchemaMarkup schema={organizationSchema} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
       </head>
       <body
         className={`${manrope.variable} font-sans antialiased min-h-screen`}
@@ -116,21 +133,21 @@ export default function RootLayout({
             <div className="max-w-7xl mx-auto px-4 py-3">
               <div className="flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2">
-                  <span className="text-xl font-bold tracking-tight">
+                  <span className="text-xl w-[217px] font-bold tracking-tight">
                     GetVibecoderz
                   </span>
                 </Link>
                 <nav className="hidden md:flex items-center gap-6 text-sm">
-                  {/* <Link href="/" className="hover:text-primary transition-colors">Latest</Link>
-                  <Link href="/" className="hover:text-primary transition-colors">News</Link>
-                  <Link href="/" className="hover:text-primary transition-colors">Learning</Link> */}
+                  <Link href="/blog" className="font-medium hover:text-primary transition-colors">
+                    Blog
+                  </Link>
                 </nav>
                 <div className="flex items-center gap-3">
-                  <a href="#gigs-newsletter">
-                    <Button variant="ghost" size="sm" className="hidden md:flex text-muted-foreground hover:text-foreground">
+                  {/* <a href="#gigs-newsletter">
+                    <Button variant="ghost" size="sm" className="hidden md:flex">
                       Join & Subscribe
                     </Button>
-                  </a>
+                  </a> */}
                   <CreateProfileButton variant="outline" size="sm" className="hidden md:flex" hideWhenComplete>
                     Build Portfolio
                   </CreateProfileButton>
