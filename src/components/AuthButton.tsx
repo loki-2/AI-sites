@@ -74,7 +74,7 @@ export function AuthButton() {
     }
 
     return (
-        <Button onClick={handleSignIn} size="sm" className="flex items-center gap-2">
+        <Button onClick={handleSignIn} size="sm" className="flex items-center gap-2 font-bold">
             <svg
                 className="w-4 h-4"
                 viewBox="0 0 24 24"

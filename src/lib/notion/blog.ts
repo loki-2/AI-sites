@@ -169,10 +169,12 @@ async function getPublishedDbPages(): Promise<NotionBlogPage[]> {
                     : undefined;
 
         const coverProp = (page.properties as any)["Cover"];
-        const columnCover: string | undefined = 
-            coverProp?.type === "files" && coverProp.files?.length > 0
-                ? (coverProp.files[0].type === "external" ? coverProp.files[0].external?.url : coverProp.files[0].file?.url)
-                : undefined;
+        const columnCover: string | undefined =
+            coverProp?.type === "url" && coverProp.url
+                ? coverProp.url
+                : coverProp?.type === "files" && coverProp.files?.length > 0
+                    ? (coverProp.files[0].type === "external" ? coverProp.files[0].external?.url : coverProp.files[0].file?.url)
+                    : undefined;
 
         const summaryProp = (page.properties as any)["Summary"];
         const summaryText: string =
@@ -214,13 +216,23 @@ export async function syncNotionBlogsToSupabase(): Promise<SyncResult> {
                 .maybeSingle();
 
             if (existing) {
-                // Update existing record with the latest cover and date instead of purely skipping
+                // Re-fetch content so edits to the blog body are reflected
+                const blocks = await getPageBlocks(page.id);
+                const contentParts: string[] = [];
+                for (const block of blocks) {
+                    const md = blockToMarkdown(block);
+                    if (md) contentParts.push(md);
+                }
+                const updatedContent = contentParts.join("\n");
+
                 await supabase.client
                     .from("articles")
                     .update({
                         cover_image: page.coverImage ?? null,
                         published_at: page.createdAt,
                         summary: page.summary,
+                        content: updatedContent,
+                        title: page.title,
                     })
                     .eq("id", existing.id);
 

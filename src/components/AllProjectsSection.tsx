@@ -66,7 +66,10 @@ const fetchAllProjects = async ([_key, limit]: [string, number]) => {
 
 export function AllProjectsSection() {
     const [pageLimit, setPageLimit] = useState(12);
-    const { data: projects = [], isLoading: loading } = useSWR(['all_projects', pageLimit], fetchAllProjects);
+    const { data: projects = [], isLoading: loading } = useSWR(['all_projects', pageLimit], fetchAllProjects, {
+        dedupingInterval: 30000,
+        revalidateOnFocus: false,
+    });
 
     const hasMore = projects.length === pageLimit;
 
