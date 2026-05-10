@@ -1,72 +1,46 @@
 'use client';
 
-import React, { useState } from "react";
+import React from "react";
+import { Instrument_Serif } from "next/font/google";
 import { cn } from "@/lib/utils";
-import { HireTab } from "@/components/HireTab";
-import { GetHiredTab } from "@/components/GetHiredTab";
-import { LearningTab } from "@/components/LearningTab";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { useRouter } from "next/navigation";
+import { ActiveVibecodersSection } from "@/components/ActiveVibecodersSection";
+import { CreateProfileButton } from "@/components/CreateProfileButton";
 
-type TabId = 'hire' | 'get-hired' | 'learning';
+const instrumentSerif = Instrument_Serif({
+  weight: "400",
+  subsets: ["latin"],
+});
 
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState<TabId>('hire');
-  const router = useRouter();
-  const supabase = createSupabaseBrowserClient();
-
-  const tabs: { id: TabId; label: string }[] = [
-    { id: 'hire', label: 'Get Hired' },
-    { id: 'get-hired', label: 'Hire' },
-    // { id: 'learning', label: 'Learning' },
-  ];
-
-  const handlePortfolioClick = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      router.push('/profile');
-    } else {
-      await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback?next=/profile` }
-      });
-    }
-  };
-
-  const tabNavigation = (
-    <div className="w-full flex justify-center">
-      <div className="inline-flex bg-[#161616]/20 p-1.5 rounded-full items-center shrink-0 border border-border/50 shadow-sm overflow-x-auto w-full max-w-fit justify-start md:justify-center backdrop-blur-md">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+  return (
+    <div className="flex flex-col items-center w-full">
+      {/* Hero */}
+      <div className="w-full bg-gradient-to-b from-[#121212] to-[#506b81] pb-16 pt-16 shadow-[inset_0_-10px_20px_-10px_rgba(0,0,0,0.1)] border-b border-border/40">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <h1
             className={cn(
-              "px-6 md:px-8 py-2 md:py-2.5 text-sm md:text-base font-semibold rounded-full transition-all duration-300 whitespace-nowrap",
-              activeTab === tab.id
-                ? "bg-[#ffffff]/4 text-foreground shadow-md"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              "text-6xl md:text-8xl tracking-tight mb-4 pb-3 bg-gray-200 bg-clip-text text-transparent leading-tight",
+              instrumentSerif.className
             )}
           >
-            {tab.label}
-          </button>
-        ))}
-        <button
-          onClick={handlePortfolioClick}
-          className="px-6 md:px-8 py-2 md:py-2.5 text-sm md:text-base font-semibold rounded-full transition-all duration-300 whitespace-nowrap text-muted-foreground hover:text-foreground hover:bg-muted/40"
-        >
-          My Portfolio
-        </button>
+            Build your Product 10x Faster With AI-Native Builders
+          </h1>
+          <p className="text-xl text-gray-300 leading-relaxed max-w-xl mx-auto mb-10">
+            Browse portfolios and hire project-ready builders who ship real,
+            working products.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-4">
+            <CreateProfileButton size="lg" className="rounded-lg text-base font-semibold px-8 h-14 shadow-xl">
+              Build Your Portfolio
+            </CreateProfileButton>
+          </div>
+        </div>
       </div>
-    </div>
-  );
 
-  return (
-    <div className="w-full flex flex-col items-center">
-      {/* Tab Content takes full width and renders its own max-w contexts */}
-      <div className="w-full flex justify-center">
-        {activeTab === 'hire' && <HireTab tabs={tabNavigation} />}
-        {activeTab === 'get-hired' && <GetHiredTab tabs={tabNavigation} />}
-        {activeTab === 'learning' && <LearningTab />}
+      {/* Vibecoders Grid */}
+      <div className="w-full max-w-7xl mx-auto px-4 py-12">
+        <h2 className="text-2xl font-bold mb-8 tracking-tight">Active Vibecoders</h2>
+        <ActiveVibecodersSection />
       </div>
     </div>
   );

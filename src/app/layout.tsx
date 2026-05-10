@@ -5,10 +5,6 @@ import { SchemaMarkup } from "@/components/SchemaMarkup";
 import { generateOrganizationSchema } from "@/lib/seo/schemas";
 import { AuthButton } from "@/components/AuthButton";
 import { CreateProfileButton } from "@/components/CreateProfileButton";
-import { FreelanceBannerWrapper } from "@/components/FreelanceBannerWrapper";
-import { GigsNewsletterSection } from "@/components/GigsNewsletterSection";
-import { GigsNewsletterModal } from "@/components/GigsNewsletterModal";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Script from "next/script";
 
@@ -137,11 +133,7 @@ export default function RootLayout({
                     GetVibecoderz
                   </span>
                 </Link>
-                <nav className="hidden md:flex items-center gap-6 text-sm">
-                  <Link href="/blog" className="font-medium hover:text-primary transition-colors">
-                    Blog
-                  </Link>
-                </nav>
+
                 <div className="flex items-center gap-3">
                   {/* <a href="#gigs-newsletter">
                     <Button variant="ghost" size="sm" className="hidden md:flex">
@@ -159,14 +151,6 @@ export default function RootLayout({
 
           {/* Main Content */}
           <main className="flex-1">{children}</main>
-
-          {/* Global verification banner above footer */}
-          <FreelanceBannerWrapper />
-
-          {/* Gigs Newsletter Section */}
-          <div className=" w-full mx-auto bg-muted/40">
-            <GigsNewsletterSection />
-          </div>
 
           {/* Footer */}
           <footer className="border-t border-border bg-muted/40 mt-auto">

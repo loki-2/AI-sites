@@ -12,8 +12,6 @@ import type { User } from "@supabase/supabase-js";
 import type { VibecoderProfile, VibecoderBadge, VibecoderProject } from "@/types";
 import { ProjectCard } from "@/components/ProjectCard";
 import { ProjectFormModal } from "@/components/ProjectFormModal";
-import { FreelanceApplicationModal } from "@/components/FreelanceApplicationModal";
-import { FreelanceBanner } from "@/components/FreelanceBanner";
 
 const BUILD_TAGS_OPTIONS = [
     "Web apps", "Mobile apps", "SaaS Builder", "Landing Pages",
@@ -241,17 +239,8 @@ export default function ProfilePage() {
         );
     }
 
-    const verificationStatus = profile?.verification_status || 'none';
-
     return (
         <div className="flex flex-col min-h-screen bg-background font-sans">
-            {/* Verification Banner */}
-            <FreelanceBanner
-                verificationStatus={verificationStatus}
-                profile={profile || undefined}
-                projects={projects}
-                onApplicationSubmitted={() => mutate()}
-            />
 
             <div className="max-w-7xl mx-auto px-4 py-12">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
